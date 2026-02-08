@@ -7,15 +7,26 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
+  const hasSecondImage = product.images?.length >= 2;
+
   return (
     <Link to={`/products/${product.id}`} className="group">
       {product.images?.[0] ? (
-        <div className="aspect-[3/4] overflow-hidden bg-neutral-200">
+        <div className="relative aspect-[3/4] overflow-hidden bg-neutral-200">
           <img
             src={resolveImageUrl(product.images[0])}
             alt={product.name}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className={`h-full w-full object-cover transition-opacity duration-500 ${
+              hasSecondImage ? 'group-hover:opacity-0' : ''
+            }`}
           />
+          {hasSecondImage && (
+            <img
+              src={resolveImageUrl(product.images[1])}
+              alt={product.name}
+              className="absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+            />
+          )}
         </div>
       ) : (
         <div className="flex aspect-[3/4] items-center justify-center bg-neutral-200">
