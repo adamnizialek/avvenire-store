@@ -13,6 +13,12 @@ import Checkout from '@/pages/Checkout';
 import Success from '@/pages/Success';
 import OrderHistory from '@/pages/OrderHistory';
 import NewArrivals from '@/pages/NewArrivals';
+import Shipping from '@/pages/Shipping';
+import Contact from '@/pages/Contact';
+import FAQ from '@/pages/FAQ';
+import Returns from '@/pages/Returns';
+import Terms from '@/pages/Terms';
+import Privacy from '@/pages/Privacy';
 import AdminProducts from '@/pages/admin/AdminProducts';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -34,6 +40,12 @@ function App() {
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
           <Route path="cart" element={<Cart />} />
+          <Route path="shipping" element={<Shipping />} />
+          <Route path="contact" element={<Contact />} />
+          <Route path="faq" element={<FAQ />} />
+          <Route path="returns" element={<Returns />} />
+          <Route path="terms" element={<Terms />} />
+          <Route path="privacy" element={<Privacy />} />
           <Route path="success" element={<Success />} />
 
           <Route element={<ProtectedRoute />}>
