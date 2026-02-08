@@ -96,9 +96,9 @@ export default function ProductDetail() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-[2fr_1fr] gap-0">
+      <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-0">
         {/* Image collage - left side */}
-        <div className="grid grid-cols-2 gap-px bg-neutral-200">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-neutral-200">
           {images.length > 0 ? (
             images.map((img, i) => (
               <div key={i} className="bg-neutral-100">
@@ -117,7 +117,7 @@ export default function ProductDetail() {
         </div>
 
         {/* Product info - right side, sticky */}
-        <div className="self-start sticky top-0 p-8 pt-12">
+        <div className="p-4 pt-6 md:self-start md:sticky md:top-0 md:p-8 md:pt-12">
           <h1 className="text-2xl font-bold">{product.name}</h1>
           <p className="mt-3 text-xl font-bold">
             {formatPrice(Number(product.price), currency)}
@@ -162,11 +162,11 @@ export default function ProductDetail() {
       </div>
 
       {relatedProducts.length > 0 && (
-        <div className="px-8 py-16">
+        <div className="px-4 py-12 md:px-8 md:py-16">
           <h2 className="mb-8 text-center text-lg font-medium uppercase tracking-widest">
             You may also like
           </h2>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {relatedProducts.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}

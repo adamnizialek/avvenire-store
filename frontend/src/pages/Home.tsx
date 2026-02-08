@@ -56,7 +56,7 @@ export default function Home() {
               AVVENIRE
             </span>
           </h1>
-<Button size="lg" className="mt-36 animate-[fadeUp_1.2s_ease-out_0.8s_both] px-24 py-6 text-lg" asChild>
+<Button size="lg" className="mt-20 animate-[fadeUp_1.2s_ease-out_0.8s_both] px-12 py-4 text-base sm:mt-36 sm:px-24 sm:py-6 sm:text-lg" asChild>
             <Link to="/products">
               Shop All
               <ArrowRight className="ml-2 h-5 w-5" />
@@ -81,7 +81,7 @@ export default function Home() {
       {featured.length > 0 && (
         <section
           ref={sectionRef}
-          className={`relative bg-neutral-50 py-24 transition-all duration-700 ease-out ${
+          className={`relative bg-neutral-50 py-12 transition-all duration-700 ease-out ${
             visible
               ? 'translate-y-0 opacity-100'
               : 'translate-y-12 opacity-0'
@@ -91,15 +91,10 @@ export default function Home() {
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-black/10 to-transparent" />
 
           <div className="container mx-auto px-4">
-            <div className="mb-12 flex items-end justify-between">
-              <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-[0.4em] text-neutral-400">
-                  Curated for you
-                </p>
-                <h2 className="text-4xl font-light tracking-wide text-neutral-900">
-                  Our Picks
-                </h2>
-              </div>
+            <div className="mb-6 flex items-end justify-between">
+              <h2 className="text-4xl font-light tracking-wide text-neutral-900">
+                Our Picks
+              </h2>
               <Button variant="ghost" asChild>
                 <Link to="/products">
                   View all <ArrowRight className="ml-2 h-4 w-4" />

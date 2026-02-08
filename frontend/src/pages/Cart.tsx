@@ -38,7 +38,7 @@ export default function Cart() {
             {items.map((item) => (
               <div
                 key={`${item.id}-${item.size ?? ''}`}
-                className="flex items-center gap-4 rounded-lg border p-4"
+                className="flex flex-wrap items-center gap-3 rounded-lg border p-3 sm:gap-4 sm:p-4"
               >
                 {item.imageUrl ? (
                   <img
@@ -90,7 +90,7 @@ export default function Cart() {
                   </Button>
                 </div>
 
-                <p className="w-20 text-right font-medium">
+                <p className="hidden w-20 text-right font-medium sm:block">
                   {formatPrice(Number(item.price) * item.quantity, currency)}
                 </p>
 

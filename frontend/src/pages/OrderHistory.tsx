@@ -49,7 +49,7 @@ export default function OrderHistory() {
         <div className="space-y-4">
           {orders.map((order) => (
             <Card key={order.id}>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle className="text-base">
                   Order #{order.id.slice(0, 8)}
                 </CardTitle>
