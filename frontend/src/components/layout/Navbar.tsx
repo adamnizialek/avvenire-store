@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
+import CurrencySelector from '@/components/features/CurrencySelector';
 
 export default function Navbar() {
   const { user, logout } = useAuthStore();
@@ -65,6 +66,7 @@ export default function Navbar() {
 
         {/* Right side: Cart + Auth */}
         <div className="flex items-center gap-6">
+          <CurrencySelector />
           <Link to="/cart" className="relative">
             <ShoppingCart className="h-5 w-5" />
             {totalItems > 0 && (

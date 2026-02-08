@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router';
 import { ShoppingCart, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useCartStore } from '@/stores/cartStore';
+import { useCurrencyStore } from '@/stores/currencyStore';
+import { formatPrice } from '@/lib/currency';
+import ProductCard from '@/components/features/ProductCard';
 import api from '@/lib/axios';
 import { resolveImageUrl } from '@/lib/image';
 import type { Product } from '@/types';
@@ -14,17 +16,33 @@ export default function ProductDetail() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
-  const [selectedImage, setSelectedImage] = useState(0);
   const [sizeError, setSizeError] = useState(false);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const addItem = useCartStore((state) => state.addItem);
+  const currency = useCurrencyStore((state) => state.currency);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+    setSelectedSize(null);
+    setSizeError(false);
     if (id) {
       api
         .get<Product>(`/products/${id}`)
         .then((res) => setProduct(res.data))
         .catch(() => {})
         .finally(() => setLoading(false));
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      api
+        .get<Product[]>('/products')
+        .then((res) => {
+          const others = res.data.filter((p) => p.id !== id);
+          setRelatedProducts(others.slice(0, 4));
+        })
+        .catch(() => {});
     }
   }, [id]);
 
@@ -51,7 +69,7 @@ export default function ProductDetail() {
 
   const hasSizes =
     product.availableSizes && product.availableSizes.length > 0;
-  const hasImages = product.images && product.images.length > 0;
+  const images = product.images ?? [];
 
   const handleAddToCart = () => {
     if (hasSizes && !selectedSize) {
@@ -63,72 +81,50 @@ export default function ProductDetail() {
       id: product.id,
       name: product.name,
       price: product.price,
-      imageUrl: product.images?.[0] ?? null,
+      imageUrl: images[0] ?? null,
       size: selectedSize,
     });
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <Button variant="ghost" className="mb-6" asChild>
-        <Link to="/products">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Products
-        </Link>
-      </Button>
+    <div>
+      <div className="px-4 py-2">
+        <Button variant="ghost" className="mb-0" asChild>
+          <Link to="/products">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Products
+          </Link>
+        </Button>
+      </div>
 
-      <div className="grid gap-8 md:grid-cols-2">
-        {/* Image Gallery */}
-        <div>
-          {hasImages ? (
-            <>
-              <div className="overflow-hidden rounded-lg bg-neutral-100">
+      <div className="grid grid-cols-[2fr_1fr] gap-0">
+        {/* Image collage - left side */}
+        <div className="grid grid-cols-2 gap-px bg-neutral-200">
+          {images.length > 0 ? (
+            images.map((img, i) => (
+              <div key={i} className="bg-neutral-100">
                 <img
-                  src={resolveImageUrl(product.images[selectedImage])}
-                  alt={product.name}
+                  src={resolveImageUrl(img)}
+                  alt={`${product.name} ${i + 1}`}
                   className="aspect-[3/4] w-full object-cover"
                 />
               </div>
-              {product.images.length > 1 && (
-                <div className="mt-3 flex gap-2 overflow-x-auto">
-                  {product.images.map((img, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setSelectedImage(i)}
-                      className={`flex-shrink-0 overflow-hidden rounded-md border-2 transition-colors ${
-                        selectedImage === i
-                          ? 'border-primary'
-                          : 'border-transparent opacity-60 hover:opacity-100'
-                      }`}
-                    >
-                      <img
-                        src={resolveImageUrl(img)}
-                        alt={`${product.name} ${i + 1}`}
-                        className="h-20 w-20 object-cover"
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
+            ))
           ) : (
-            <div className="flex aspect-[3/4] items-center justify-center rounded-lg bg-muted">
+            <div className="col-span-2 flex aspect-[3/4] items-center justify-center bg-neutral-100">
               <span className="text-muted-foreground">No image</span>
             </div>
           )}
         </div>
 
-        <div>
-          <Badge variant="secondary" className="mb-2 capitalize">
-            {product.category}
-          </Badge>
-          <h1 className="text-3xl font-bold">{product.name}</h1>
-          <p className="mt-4 text-2xl font-bold">
-            ${Number(product.price).toFixed(2)}
+        {/* Product info - right side, sticky */}
+        <div className="self-start sticky top-0 p-8 pt-12">
+          <h1 className="text-2xl font-bold">{product.name}</h1>
+          <p className="mt-3 text-xl font-bold">
+            {formatPrice(Number(product.price), currency)}
           </p>
-          <Separator className="my-6" />
-          <p className="text-muted-foreground">{product.description}</p>
+          <Separator className="my-5" />
+          <p className="text-sm text-muted-foreground">{product.description}</p>
 
-          {/* Size Selector */}
           {hasSizes && (
             <div className="mt-6">
               <p className="mb-3 text-sm font-medium">
@@ -158,12 +154,25 @@ export default function ProductDetail() {
             </div>
           )}
 
-          <Button size="lg" className="mt-8" onClick={handleAddToCart}>
+          <Button size="lg" className="mt-8 w-full" onClick={handleAddToCart}>
             <ShoppingCart className="mr-2 h-5 w-5" />
             Add to Cart
           </Button>
         </div>
       </div>
+
+      {relatedProducts.length > 0 && (
+        <div className="px-8 py-16">
+          <h2 className="mb-8 text-center text-lg font-medium uppercase tracking-widest">
+            You may also like
+          </h2>
+          <div className="grid grid-cols-4 gap-4">
+            {relatedProducts.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

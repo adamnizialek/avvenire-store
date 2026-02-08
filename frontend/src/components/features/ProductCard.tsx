@@ -1,5 +1,7 @@
 import { Link } from 'react-router';
 import { resolveImageUrl } from '@/lib/image';
+import { useCurrencyStore } from '@/stores/currencyStore';
+import { formatPrice } from '@/lib/currency';
 import type { Product } from '@/types';
 
 interface ProductCardProps {
@@ -7,6 +9,7 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
+  const currency = useCurrencyStore((state) => state.currency);
   const hasSecondImage = product.images?.length >= 2;
 
   return (
@@ -38,7 +41,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           {product.name}
         </h3>
         <p className="mt-0.5 text-xs text-neutral-600">
-          ${Number(product.price).toFixed(2)}
+          {formatPrice(Number(product.price), currency)}
         </p>
       </div>
     </Link>

@@ -11,10 +11,13 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useCartStore } from '@/stores/cartStore';
+import { useCurrencyStore } from '@/stores/currencyStore';
+import { formatPrice } from '@/lib/currency';
 import api from '@/lib/axios';
 
 export default function Checkout() {
   const { items, getTotalPrice, clearCart } = useCartStore();
+  const currency = useCurrencyStore((state) => state.currency);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -74,7 +77,7 @@ export default function Checkout() {
                   {item.name}{item.size ? ` (${item.size})` : ''} x {item.quantity}
                 </span>
                 <span className="font-medium">
-                  ${(Number(item.price) * item.quantity).toFixed(2)}
+                  {formatPrice(Number(item.price) * item.quantity, currency)}
                 </span>
               </div>
             ))}
@@ -84,8 +87,13 @@ export default function Checkout() {
 
           <div className="flex justify-between text-lg font-bold">
             <span>Total</span>
-            <span>${getTotalPrice().toFixed(2)}</span>
+            <span>{formatPrice(getTotalPrice(), currency)}</span>
           </div>
+          {currency !== 'USD' && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              * You will be charged in USD. The {currency} amount is an estimate based on current exchange rates.
+            </p>
+          )}
         </CardContent>
         <CardFooter>
           <Button

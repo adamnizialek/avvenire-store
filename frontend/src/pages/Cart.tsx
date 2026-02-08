@@ -5,10 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useCurrencyStore } from '@/stores/currencyStore';
+import { formatPrice } from '@/lib/currency';
 
 export default function Cart() {
   const { items, removeItem, updateQuantity, getTotalPrice } = useCartStore();
   const { token } = useAuthStore();
+  const currency = useCurrencyStore((state) => state.currency);
 
   if (items.length === 0) {
     return (
@@ -59,7 +62,7 @@ export default function Cart() {
                     </p>
                   )}
                   <p className="text-sm text-muted-foreground">
-                    ${Number(item.price).toFixed(2)} each
+                    {formatPrice(Number(item.price), currency)} each
                   </p>
                 </div>
 
@@ -88,7 +91,7 @@ export default function Cart() {
                 </div>
 
                 <p className="w-20 text-right font-medium">
-                  ${(Number(item.price) * item.quantity).toFixed(2)}
+                  {formatPrice(Number(item.price) * item.quantity, currency)}
                 </p>
 
                 <Button
@@ -108,7 +111,7 @@ export default function Cart() {
           <Separator className="my-4" />
           <div className="flex justify-between text-lg font-bold">
             <span>Total</span>
-            <span>${getTotalPrice().toFixed(2)}</span>
+            <span>{formatPrice(getTotalPrice(), currency)}</span>
           </div>
           <Button className="mt-6 w-full" size="lg" asChild>
             <Link to={token ? '/checkout' : '/login'}>

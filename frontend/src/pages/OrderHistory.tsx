@@ -7,10 +7,13 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import api from '@/lib/axios';
+import { useCurrencyStore } from '@/stores/currencyStore';
+import { formatPrice } from '@/lib/currency';
 import type { Order } from '@/types';
 
 export default function OrderHistory() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const currency = useCurrencyStore((state) => state.currency);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -59,7 +62,7 @@ export default function OrderHistory() {
                     {order.status}
                   </Badge>
                   <span className="font-bold">
-                    ${Number(order.totalAmount).toFixed(2)}
+                    {formatPrice(Number(order.totalAmount), currency)}
                   </span>
                 </div>
               </CardHeader>
@@ -83,7 +86,7 @@ export default function OrderHistory() {
                         {item.product?.name || 'Product'} x {item.quantity}
                       </span>
                       <span>
-                        ${(Number(item.price) * item.quantity).toFixed(2)}
+                        {formatPrice(Number(item.price) * item.quantity, currency)}
                       </span>
                     </div>
                   ))}
