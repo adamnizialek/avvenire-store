@@ -142,68 +142,70 @@ export default function Navbar() {
 
         {/* Mobile drawer */}
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetContent side="right" className="w-72">
-            <SheetHeader>
-              <SheetTitle className="text-left text-lg tracking-wider">AVVENIRE</SheetTitle>
+          <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-md">
+            <SheetHeader className="border-b px-6 py-4">
+              <SheetTitle className="text-left text-xl font-bold tracking-wider">AVVENIRE</SheetTitle>
             </SheetHeader>
-            <nav className="flex flex-col gap-1 px-4">
+
+            <nav className="flex flex-1 flex-col gap-3 overflow-y-auto px-6 pt-6">
+              {/* Main navigation — bordered items */}
               <SheetClose asChild>
-                <Link to="/" className="rounded-md px-3 py-2.5 text-sm font-medium hover:bg-accent">
+                <Link to="/" className="block rounded-sm border border-neutral-200 px-4 py-3.5 text-sm font-medium uppercase tracking-wider">
                   Home
                 </Link>
               </SheetClose>
               <SheetClose asChild>
-                <Link to="/products" className="rounded-md px-3 py-2.5 text-sm font-medium hover:bg-accent">
-                  Shop All
+                <Link to="/products" className="block rounded-sm border border-neutral-200 px-4 py-3.5 text-sm font-medium uppercase tracking-wider">
+                  Shop
                 </Link>
               </SheetClose>
               <SheetClose asChild>
-                <Link to="/products/new-arrivals" className="rounded-md px-3 py-2.5 text-sm font-medium hover:bg-accent">
+                <Link to="/products/new-arrivals" className="block rounded-sm border border-neutral-200 px-4 py-3.5 text-sm font-medium uppercase tracking-wider">
                   New Arrivals
                 </Link>
               </SheetClose>
 
-              <div className="my-2 h-px bg-border" />
-
-              <div className="px-3 py-2">
-                <CurrencySelector />
+              {/* Secondary links — grouped box */}
+              <div className="mt-2 rounded-sm border border-neutral-200">
+                {user ? (
+                  <>
+                    <SheetClose asChild>
+                      <Link to="/orders" className="block border-b border-neutral-200 px-4 py-3 text-sm font-medium uppercase tracking-wider">
+                        My Orders
+                      </Link>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Link to="/admin/products" className="block border-b border-neutral-200 px-4 py-3 text-sm font-medium uppercase tracking-wider">
+                        Admin Panel
+                      </Link>
+                    </SheetClose>
+                    <button
+                      onClick={() => { handleLogout(); setMobileOpen(false); }}
+                      className="block w-full px-4 py-3 text-left text-sm font-medium uppercase tracking-wider text-destructive"
+                    >
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <SheetClose asChild>
+                      <Link to="/login" className="block border-b border-neutral-200 px-4 py-3 text-sm font-medium uppercase tracking-wider">
+                        Login
+                      </Link>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Link to="/register" className="block px-4 py-3 text-sm font-medium uppercase tracking-wider">
+                        Register
+                      </Link>
+                    </SheetClose>
+                  </>
+                )}
               </div>
 
-              <div className="my-2 h-px bg-border" />
-
-              {user ? (
-                <>
-                  <SheetClose asChild>
-                    <Link to="/orders" className="rounded-md px-3 py-2.5 text-sm font-medium hover:bg-accent">
-                      My Orders
-                    </Link>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <Link to="/admin/products" className="rounded-md px-3 py-2.5 text-sm font-medium hover:bg-accent">
-                      Admin Panel
-                    </Link>
-                  </SheetClose>
-                  <button
-                    onClick={() => { handleLogout(); setMobileOpen(false); }}
-                    className="rounded-md px-3 py-2.5 text-left text-sm font-medium text-destructive hover:bg-accent"
-                  >
-                    Logout
-                  </button>
-                </>
-              ) : (
-                <>
-                  <SheetClose asChild>
-                    <Link to="/login" className="rounded-md px-3 py-2.5 text-sm font-medium hover:bg-accent">
-                      Login
-                    </Link>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <Link to="/register" className="rounded-md px-3 py-2.5 text-sm font-medium hover:bg-accent">
-                      Register
-                    </Link>
-                  </SheetClose>
-                </>
-              )}
+              {/* Currency selector at bottom */}
+              <div className="mt-4">
+                <CurrencySelector />
+              </div>
             </nav>
           </SheetContent>
         </Sheet>
