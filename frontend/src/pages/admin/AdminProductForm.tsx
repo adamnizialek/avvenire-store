@@ -116,8 +116,6 @@ export default function AdminProductForm({
     }
   };
 
-  const presetSizes = SIZE_PRESETS[category] || [];
-
   const resolveUrl = resolveImageUrl;
 
   return (

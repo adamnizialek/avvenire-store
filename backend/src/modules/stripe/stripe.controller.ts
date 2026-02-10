@@ -6,6 +6,7 @@ import {
   Headers,
   BadRequestException,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { StripeService } from './stripe.service';
 import { Public } from '../auth/decorators/public.decorator';
 
@@ -22,6 +23,7 @@ export class StripeController {
   }
 
   @Public()
+  @SkipThrottle()
   @Post('webhook')
   async handleWebhook(
     @Request() req: any,
