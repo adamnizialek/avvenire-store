@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { ShoppingCart, LogOut, User, Settings, ChevronDown, Menu } from 'lucide-react';
+import { ShoppingCart, LogOut, User, Settings, ChevronDown, Menu, Instagram } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -202,9 +202,17 @@ export default function Navbar() {
                 )}
               </div>
 
-              {/* Currency selector at bottom */}
-              <div className="mt-4">
+              {/* Currency selector + Instagram */}
+              <div className="mt-4 flex items-center gap-4">
                 <CurrencySelector />
+                <a
+                  href="https://www.instagram.com/avvenire.vision/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Instagram"
+                >
+                  <Instagram className="h-5 w-5 text-neutral-500 transition-colors hover:text-foreground" />
+                </a>
               </div>
             </nav>
           </SheetContent>

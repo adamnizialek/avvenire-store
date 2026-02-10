@@ -35,6 +35,14 @@ export default function Contact() {
             Follow us for the latest collections and updates. You can also reach us through
             direct messages on our social media channels.
           </p>
+          <a
+            href="https://www.instagram.com/avvenire.vision/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-2 text-foreground underline underline-offset-4"
+          >
+            Instagram
+          </a>
         </section>
       </div>
     </div>

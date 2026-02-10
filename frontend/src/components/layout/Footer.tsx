@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { Instagram } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -59,6 +60,14 @@ export default function Footer() {
             <p className="mb-4 text-xl font-bold tracking-wider text-white">
               AVVENIRE
             </p>
+            <a
+              href="https://www.instagram.com/avvenire.vision/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm transition-colors hover:text-white"
+            >
+              <Instagram className="h-5 w-5" />
+            </a>
           </div>
         </div>
 
