@@ -9,6 +9,7 @@ import {
   Query,
   UseInterceptors,
   UploadedFile,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -17,6 +18,8 @@ import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Public } from '../auth/decorators/public.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 @Controller('products')
 export class ProductsController {
@@ -29,6 +32,8 @@ export class ProductsController {
   }
 
   @Post('upload')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
@@ -53,6 +58,8 @@ export class ProductsController {
   }
 
   @Post()
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   create(@Body() dto: CreateProductDto) {
     return this.productsService.create(dto);
   }
@@ -64,11 +71,15 @@ export class ProductsController {
   }
 
   @Patch(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
     return this.productsService.update(id, dto);
   }
 
   @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   remove(@Param('id') id: string) {
     return this.productsService.remove(id);
   }

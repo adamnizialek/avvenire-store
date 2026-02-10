@@ -1,4 +1,13 @@
-import { IsString, IsNumber, IsOptional, IsArray, Min } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsArray,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { InventoryItemDto } from './create-product.dto';
 
 export class UpdateProductDto {
   @IsOptional()
@@ -20,8 +29,9 @@ export class UpdateProductDto {
 
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
-  availableSizes?: string[];
+  @ValidateNested({ each: true })
+  @Type(() => InventoryItemDto)
+  inventory?: InventoryItemDto[];
 
   @IsOptional()
   @IsArray()

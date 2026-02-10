@@ -25,7 +25,7 @@ export class Product {
   category: string;
 
   @Column('simple-json', { default: '[]' })
-  availableSizes: string[];
+  inventory: { size: string; quantity: number }[];
 
   @Column('simple-json', { default: '[]' })
   images: string[];

@@ -17,7 +17,7 @@ export class OrdersController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.ordersService.findById(id);
+  findOne(@Param('id') id: string, @Request() req: any) {
+    return this.ordersService.findByIdForUser(id, req.user.userId);
   }
 }

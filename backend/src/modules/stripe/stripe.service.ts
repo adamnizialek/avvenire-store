@@ -17,8 +17,8 @@ export class StripeService {
     );
   }
 
-  async createCheckoutSession(orderId: string) {
-    const order = await this.ordersService.findById(orderId);
+  async createCheckoutSession(orderId: string, userId: string) {
+    const order = await this.ordersService.findByIdForUser(orderId, userId);
 
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] =
       order.items.map((item) => ({

@@ -31,8 +31,8 @@ export default function AdminProductForm({
     product?.stripePriceId || '',
   );
   const [category, setCategory] = useState(product?.category || 'clothing');
-  const [availableSizes, setAvailableSizes] = useState<string[]>(
-    product?.availableSizes || [],
+  const [inventory, setInventory] = useState<{ size: string; quantity: number }[]>(
+    product?.inventory || [],
   );
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -41,13 +41,14 @@ export default function AdminProductForm({
 
   useEffect(() => {
     if (!product) {
-      setAvailableSizes(SIZE_PRESETS[category] || []);
+      const presets = SIZE_PRESETS[category] || [];
+      setInventory(presets.map((size) => ({ size, quantity: 10 })));
     }
   }, [category, product]);
 
-  const toggleSize = (size: string) => {
-    setAvailableSizes((prev) =>
-      prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size],
+  const updateQuantity = (size: string, quantity: number) => {
+    setInventory((prev) =>
+      prev.map((inv) => (inv.size === size ? { ...inv, quantity } : inv)),
     );
   };
 
@@ -98,7 +99,7 @@ export default function AdminProductForm({
       images,
       stripePriceId: stripePriceId || null,
       category,
-      availableSizes,
+      inventory,
     };
 
     try {
@@ -175,21 +176,22 @@ export default function AdminProductForm({
       </div>
 
       <div className="space-y-2">
-        <Label>Available Sizes</Label>
-        <div className="flex flex-wrap gap-2">
-          {presetSizes.map((size) => (
-            <button
-              key={size}
-              type="button"
-              onClick={() => toggleSize(size)}
-              className={`flex h-9 min-w-[2.5rem] items-center justify-center rounded-md border px-3 text-sm font-medium transition-colors ${
-                availableSizes.includes(size)
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-input bg-background hover:bg-accent'
-              }`}
-            >
-              {size}
-            </button>
+        <Label>Inventory (Size / Quantity)</Label>
+        <div className="space-y-2">
+          {inventory.map((inv) => (
+            <div key={inv.size} className="flex items-center gap-3">
+              <span className="w-16 text-sm font-medium">{inv.size}</span>
+              <Input
+                type="number"
+                min="0"
+                value={inv.quantity}
+                onChange={(e) =>
+                  updateQuantity(inv.size, Math.max(0, parseInt(e.target.value) || 0))
+                }
+                className="w-24"
+              />
+              <span className="text-xs text-muted-foreground">pcs</span>
+            </div>
           ))}
         </div>
       </div>

@@ -14,8 +14,11 @@ export class StripeController {
   constructor(private stripeService: StripeService) {}
 
   @Post('create-checkout-session')
-  createCheckoutSession(@Body('orderId') orderId: string) {
-    return this.stripeService.createCheckoutSession(orderId);
+  createCheckoutSession(
+    @Body('orderId') orderId: string,
+    @Request() req: any,
+  ) {
+    return this.stripeService.createCheckoutSession(orderId, req.user.userId);
   }
 
   @Public()

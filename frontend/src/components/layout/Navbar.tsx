@@ -100,10 +100,12 @@ export default function Navbar() {
                 <DropdownMenuItem onClick={() => navigate('/orders')}>
                   My Orders
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/admin/products')}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Admin Panel
-                </DropdownMenuItem>
+                {user.role === 'admin' && (
+                  <DropdownMenuItem onClick={() => navigate('/admin/products')}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Admin Panel
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
@@ -174,11 +176,13 @@ export default function Navbar() {
                         My Orders
                       </Link>
                     </SheetClose>
-                    <SheetClose asChild>
-                      <Link to="/admin/products" className="block border-b border-neutral-200 px-4 py-3 text-sm font-medium uppercase tracking-wider">
-                        Admin Panel
-                      </Link>
-                    </SheetClose>
+                    {user.role === 'admin' && (
+                      <SheetClose asChild>
+                        <Link to="/admin/products" className="block border-b border-neutral-200 px-4 py-3 text-sm font-medium uppercase tracking-wider">
+                          Admin Panel
+                        </Link>
+                      </SheetClose>
+                    )}
                     <button
                       onClick={() => { handleLogout(); setMobileOpen(false); }}
                       className="block w-full px-4 py-3 text-left text-sm font-medium uppercase tracking-wider text-destructive"

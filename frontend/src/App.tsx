@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router';
 import { Toaster } from '@/components/ui/sonner';
 import Layout from '@/components/layout/Layout';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
+import AdminRoute from '@/components/layout/AdminRoute';
 import Home from '@/pages/Home';
 import Products from '@/pages/Products';
 import ProductDetail from '@/pages/ProductDetail';
@@ -51,6 +52,8 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="checkout" element={<Checkout />} />
             <Route path="orders" element={<OrderHistory />} />
+          </Route>
+          <Route element={<AdminRoute />}>
             <Route path="admin/products" element={<AdminProducts />} />
           </Route>
         </Route>

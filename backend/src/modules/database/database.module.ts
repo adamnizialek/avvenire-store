@@ -12,7 +12,7 @@ import * as path from 'path';
       type: 'better-sqlite3',
       database: path.join(__dirname, '..', '..', '..', 'shop.db'),
       entities: [User, Product, Order, OrderItem],
-      synchronize: true,
+      synchronize: process.env.NODE_ENV !== 'production',
     }),
   ],
 })

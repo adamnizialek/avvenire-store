@@ -16,7 +16,7 @@ import { formatPrice } from '@/lib/currency';
 import api from '@/lib/axios';
 
 export default function Checkout() {
-  const { items, getTotalPrice, clearCart } = useCartStore();
+  const { items, getTotalPrice } = useCartStore();
   const currency = useCurrencyStore((state) => state.currency);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -47,7 +47,6 @@ export default function Checkout() {
       });
 
       // 3. Redirect to Stripe
-      clearCart();
       window.location.href = stripeResponse.data.url;
     } catch (err: any) {
       setError(err.response?.data?.message || 'Checkout failed. Please try again.');

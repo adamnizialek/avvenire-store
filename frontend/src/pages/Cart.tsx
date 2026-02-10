@@ -66,28 +66,34 @@ export default function Cart() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() =>
-                      updateQuantity(item.id, item.size, item.quantity - 1)
-                    }
-                  >
-                    <Minus className="h-3 w-3" />
-                  </Button>
-                  <span className="w-8 text-center">{item.quantity}</span>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() =>
-                      updateQuantity(item.id, item.size, item.quantity + 1)
-                    }
-                  >
-                    <Plus className="h-3 w-3" />
-                  </Button>
+                <div className="flex flex-col items-center gap-1">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() =>
+                        updateQuantity(item.id, item.size, item.quantity - 1)
+                      }
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <span className="w-8 text-center">{item.quantity}</span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={item.maxQuantity !== undefined && item.quantity >= item.maxQuantity}
+                      onClick={() =>
+                        updateQuantity(item.id, item.size, item.quantity + 1)
+                      }
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  {item.maxQuantity !== undefined && item.quantity >= item.maxQuantity && (
+                    <span className="text-xs text-destructive">Max stock reached</span>
+                  )}
                 </div>
 
                 <p className="hidden w-20 text-right font-medium sm:block">

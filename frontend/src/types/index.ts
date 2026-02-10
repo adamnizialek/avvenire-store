@@ -1,7 +1,13 @@
 export interface User {
   id: string;
   email: string;
+  role?: string;
   createdAt?: string;
+}
+
+export interface InventoryItem {
+  size: string;
+  quantity: number;
 }
 
 export interface Product {
@@ -10,7 +16,7 @@ export interface Product {
   description: string;
   price: number;
   category: string;
-  availableSizes: string[];
+  inventory: InventoryItem[];
   images: string[];
   stripePriceId: string | null;
   createdAt: string;
@@ -43,6 +49,7 @@ export interface CartItem {
   quantity: number;
   imageUrl: string | null;
   size: string | null;
+  maxQuantity?: number;
 }
 
 export interface AuthResponse {

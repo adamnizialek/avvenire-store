@@ -9,6 +9,7 @@ import { formatPrice } from '@/lib/currency';
 import ProductCard from '@/components/features/ProductCard';
 import api from '@/lib/axios';
 import { resolveImageUrl } from '@/lib/image';
+import { toast } from 'sonner';
 import type { Product } from '@/types';
 
 export default function ProductDetail() {
@@ -17,6 +18,7 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [sizeError, setSizeError] = useState(false);
+  const [stockError, setStockError] = useState(false);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const addItem = useCartStore((state) => state.addItem);
   const currency = useCurrencyStore((state) => state.currency);
@@ -25,6 +27,7 @@ export default function ProductDetail() {
     window.scrollTo(0, 0);
     setSelectedSize(null);
     setSizeError(false);
+    setStockError(false);
     if (id) {
       api
         .get<Product>(`/products/${id}`)
@@ -67,8 +70,7 @@ export default function ProductDetail() {
     );
   }
 
-  const hasSizes =
-    product.availableSizes && product.availableSizes.length > 0;
+  const hasSizes = product.inventory && product.inventory.length > 0;
   const images = product.images ?? [];
 
   const handleAddToCart = () => {
@@ -77,13 +79,22 @@ export default function ProductDetail() {
       return;
     }
     setSizeError(false);
-    addItem({
+    setStockError(false);
+    const invEntry = product.inventory.find((inv) => inv.size === selectedSize);
+    const added = addItem({
       id: product.id,
       name: product.name,
       price: product.price,
       imageUrl: images[0] ?? null,
       size: selectedSize,
+      maxQuantity: invEntry?.quantity,
     });
+    if (!added) {
+      setStockError(true);
+      toast.error('All available stock for this size is already in your cart.');
+    } else {
+      toast.success(`${product.name} added to cart`);
+    }
   };
 
   return (
@@ -134,22 +145,30 @@ export default function ProductDetail() {
                 )}
               </p>
               <div className="flex flex-wrap gap-2">
-                {product.availableSizes.map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => {
-                      setSelectedSize(size);
-                      setSizeError(false);
-                    }}
-                    className={`flex h-10 min-w-[3rem] items-center justify-center rounded-md border px-3 text-sm font-medium transition-colors ${
-                      selectedSize === size
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-input bg-background hover:bg-accent hover:text-accent-foreground'
-                    }`}
-                  >
-                    {size}
-                  </button>
-                ))}
+                {product.inventory.map((inv) => {
+                  const soldOut = inv.quantity === 0;
+                  return (
+                    <button
+                      key={inv.size}
+                      onClick={() => {
+                        if (!soldOut) {
+                          setSelectedSize(inv.size);
+                          setSizeError(false);
+                        }
+                      }}
+                      disabled={soldOut}
+                      className={`flex h-10 min-w-[3rem] items-center justify-center rounded-md border px-3 text-sm font-medium transition-colors ${
+                        soldOut
+                          ? 'border-input bg-muted text-muted-foreground line-through cursor-not-allowed opacity-50'
+                          : selectedSize === inv.size
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-input bg-background hover:bg-accent hover:text-accent-foreground'
+                      }`}
+                    >
+                      {inv.size}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -158,6 +177,11 @@ export default function ProductDetail() {
             <ShoppingCart className="mr-2 h-5 w-5" />
             Add to Cart
           </Button>
+          {stockError && (
+            <p className="mt-2 text-sm text-destructive">
+              All available stock for this size is already in your cart.
+            </p>
+          )}
         </div>
       </div>
 

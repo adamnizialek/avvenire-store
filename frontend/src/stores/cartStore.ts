@@ -8,7 +8,7 @@ function cartKey(id: string, size: string | null) {
 
 interface CartState {
   items: CartItem[];
-  addItem: (item: Omit<CartItem, 'quantity'>) => void;
+  addItem: (item: Omit<CartItem, 'quantity'>) => boolean;
   removeItem: (id: string, size: string | null) => void;
   updateQuantity: (id: string, size: string | null, quantity: number) => void;
   clearCart: () => void;
@@ -21,23 +21,29 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
 
-      addItem: (item) =>
-        set((state) => {
-          const key = cartKey(item.id, item.size);
-          const existing = state.items.find(
-            (i) => cartKey(i.id, i.size) === key,
-          );
-          if (existing) {
-            return {
-              items: state.items.map((i) =>
-                cartKey(i.id, i.size) === key
-                  ? { ...i, quantity: i.quantity + 1 }
-                  : i,
-              ),
-            };
+      addItem: (item) => {
+        const state = get();
+        const key = cartKey(item.id, item.size);
+        const existing = state.items.find(
+          (i) => cartKey(i.id, i.size) === key,
+        );
+        if (existing) {
+          const max = item.maxQuantity ?? existing.maxQuantity;
+          if (max !== undefined && existing.quantity >= max) {
+            return false;
           }
-          return { items: [...state.items, { ...item, quantity: 1 }] };
-        }),
+          set({
+            items: state.items.map((i) =>
+              cartKey(i.id, i.size) === key
+                ? { ...i, quantity: i.quantity + 1, maxQuantity: max }
+                : i,
+            ),
+          });
+          return true;
+        }
+        set({ items: [...state.items, { ...item, quantity: 1 }] });
+        return true;
+      },
 
       removeItem: (id, size) =>
         set((state) => {
@@ -52,17 +58,20 @@ export const useCartStore = create<CartState>()(
       updateQuantity: (id, size, quantity) =>
         set((state) => {
           const key = cartKey(id, size);
+          if (quantity <= 0) {
+            return {
+              items: state.items.filter(
+                (item) => cartKey(item.id, item.size) !== key,
+              ),
+            };
+          }
           return {
-            items:
-              quantity <= 0
-                ? state.items.filter(
-                    (item) => cartKey(item.id, item.size) !== key,
-                  )
-                : state.items.map((item) =>
-                    cartKey(item.id, item.size) === key
-                      ? { ...item, quantity }
-                      : item,
-                  ),
+            items: state.items.map((item) => {
+              if (cartKey(item.id, item.size) !== key) return item;
+              const max = item.maxQuantity;
+              const capped = max !== undefined ? Math.min(quantity, max) : quantity;
+              return { ...item, quantity: capped };
+            }),
           };
         }),
 
