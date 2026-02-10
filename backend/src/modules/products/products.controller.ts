@@ -12,9 +12,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { memoryStorage } from 'multer';
 import { ProductsService } from './products.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Public } from '../auth/decorators/public.decorator';
@@ -23,7 +23,10 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 
 @Controller('products')
 export class ProductsController {
-  constructor(private productsService: ProductsService) {}
+  constructor(
+    private productsService: ProductsService,
+    private cloudinaryService: CloudinaryService,
+  ) {}
 
   @Public()
   @Get()
@@ -36,13 +39,7 @@ export class ProductsController {
   @Roles('admin')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (_req, file, cb) => {
-          const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, unique + extname(file.originalname));
-        },
-      }),
+      storage: memoryStorage(),
       fileFilter: (_req, file, cb) => {
         if (file.mimetype.startsWith('image/')) {
           cb(null, true);
@@ -53,8 +50,9 @@ export class ProductsController {
       limits: { fileSize: 10 * 1024 * 1024 },
     }),
   )
-  upload(@UploadedFile() file: Express.Multer.File) {
-    return { url: `/uploads/${file.filename}` };
+  async upload(@UploadedFile() file: Express.Multer.File) {
+    const url = await this.cloudinaryService.uploadImage(file);
+    return { url };
   }
 
   @Post()
