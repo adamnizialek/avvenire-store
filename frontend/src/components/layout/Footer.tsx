@@ -3,7 +3,7 @@ import { Instagram } from 'lucide-react';
 
 export default function Footer() {
   return (
-    <footer className="bg-neutral-950 text-neutral-300">
+    <footer className="bg-neutral-950 text-neutral-400">
       <div className="px-8 py-12 md:py-16">
         {/* Links grid */}
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
@@ -64,6 +64,7 @@ export default function Footer() {
               href="https://www.instagram.com/avvenire.vision/"
               target="_blank"
               rel="noopener noreferrer"
+              aria-label="Follow us on Instagram"
               className="inline-flex items-center gap-2 text-sm transition-colors hover:text-white"
             >
               <Instagram className="h-5 w-5" />
@@ -89,7 +90,7 @@ export default function Footer() {
         </div>
 
         {/* Copyright */}
-        <p className="mt-8 text-xs text-neutral-500">
+        <p className="mt-8 text-xs text-neutral-400">
           &copy; {new Date().getFullYear()} AVVENIRE. All rights reserved.
         </p>
       </div>
