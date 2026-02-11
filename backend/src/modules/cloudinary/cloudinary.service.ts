@@ -5,11 +5,15 @@ import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 @Injectable()
 export class CloudinaryService {
   constructor(private config: ConfigService) {
-    cloudinary.config({
-      cloud_name: this.config.get<string>('CLOUDINARY_CLOUD_NAME'),
-      api_key: this.config.get<string>('CLOUDINARY_API_KEY'),
-      api_secret: this.config.get<string>('CLOUDINARY_API_SECRET'),
-    });
+    const url = this.config.get<string>('CLOUDINARY_URL');
+    if (url) {
+      const parsed = new URL(url.replace('cloudinary://', 'https://'));
+      cloudinary.config({
+        cloud_name: parsed.hostname,
+        api_key: parsed.username,
+        api_secret: parsed.password,
+      });
+    }
   }
 
   async uploadImage(file: Express.Multer.File): Promise<string> {
