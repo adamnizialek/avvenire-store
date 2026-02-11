@@ -39,6 +39,9 @@ export class StripeService {
     const session = await this.stripe.checkout.sessions.create({
       line_items: lineItems,
       mode: 'payment',
+      shipping_address_collection: {
+        allowed_countries: ['PL', 'DE', 'US', 'GB', 'FR', 'IT', 'ES', 'NL', 'CZ', 'SK', 'AT', 'SE'],
+      },
       success_url: `${this.configService.get('FRONTEND_URL')}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${this.configService.get('FRONTEND_URL')}/cart`,
       metadata: {
