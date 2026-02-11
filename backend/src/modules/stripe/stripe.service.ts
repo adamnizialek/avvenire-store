@@ -47,21 +47,10 @@ export class StripeService {
           shipping_rate_data: {
             type: 'fixed_amount',
             fixed_amount: { amount: 0, currency: 'usd' },
-            display_name: 'Standard Shipping',
+            display_name: 'Free Shipping',
             delivery_estimate: {
               minimum: { unit: 'business_day', value: 5 },
               maximum: { unit: 'business_day', value: 10 },
-            },
-          },
-        },
-        {
-          shipping_rate_data: {
-            type: 'fixed_amount',
-            fixed_amount: { amount: 1500, currency: 'usd' },
-            display_name: 'Express Shipping',
-            delivery_estimate: {
-              minimum: { unit: 'business_day', value: 1 },
-              maximum: { unit: 'business_day', value: 3 },
             },
           },
         },
