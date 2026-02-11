@@ -116,6 +116,7 @@ export default function ProductDetail() {
                 <img
                   src={resolveImageUrl(img)}
                   alt={`${product.name} ${i + 1}`}
+                  loading="lazy"
                   className="aspect-[3/4] w-full object-cover"
                 />
               </div>

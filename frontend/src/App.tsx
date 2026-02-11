@@ -1,27 +1,28 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router';
 import { Toaster } from '@/components/ui/sonner';
 import Layout from '@/components/layout/Layout';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import AdminRoute from '@/components/layout/AdminRoute';
 import Home from '@/pages/Home';
-import Products from '@/pages/Products';
-import ProductDetail from '@/pages/ProductDetail';
-import Login from '@/pages/Login';
-import Register from '@/pages/Register';
-import Cart from '@/pages/Cart';
-import Checkout from '@/pages/Checkout';
-import Success from '@/pages/Success';
-import OrderHistory from '@/pages/OrderHistory';
-import NewArrivals from '@/pages/NewArrivals';
-import Shipping from '@/pages/Shipping';
-import Contact from '@/pages/Contact';
-import FAQ from '@/pages/FAQ';
-import Returns from '@/pages/Returns';
-import Terms from '@/pages/Terms';
-import Privacy from '@/pages/Privacy';
-import AdminProducts from '@/pages/admin/AdminProducts';
 import { useAuthStore } from '@/stores/authStore';
+
+const Products = lazy(() => import('@/pages/Products'));
+const ProductDetail = lazy(() => import('@/pages/ProductDetail'));
+const Login = lazy(() => import('@/pages/Login'));
+const Register = lazy(() => import('@/pages/Register'));
+const Cart = lazy(() => import('@/pages/Cart'));
+const Checkout = lazy(() => import('@/pages/Checkout'));
+const Success = lazy(() => import('@/pages/Success'));
+const OrderHistory = lazy(() => import('@/pages/OrderHistory'));
+const NewArrivals = lazy(() => import('@/pages/NewArrivals'));
+const Shipping = lazy(() => import('@/pages/Shipping'));
+const Contact = lazy(() => import('@/pages/Contact'));
+const FAQ = lazy(() => import('@/pages/FAQ'));
+const Returns = lazy(() => import('@/pages/Returns'));
+const Terms = lazy(() => import('@/pages/Terms'));
+const Privacy = lazy(() => import('@/pages/Privacy'));
+const AdminProducts = lazy(() => import('@/pages/admin/AdminProducts'));
 
 function App() {
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
@@ -32,32 +33,34 @@ function App() {
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route index element={<Home />} />
-          <Route path="products" element={<Products />} />
-          <Route path="products/new-arrivals" element={<NewArrivals />} />
-          <Route path="products/:id" element={<ProductDetail />} />
-          <Route path="login" element={<Login />} />
-          <Route path="register" element={<Register />} />
-          <Route path="cart" element={<Cart />} />
-          <Route path="shipping" element={<Shipping />} />
-          <Route path="contact" element={<Contact />} />
-          <Route path="faq" element={<FAQ />} />
-          <Route path="returns" element={<Returns />} />
-          <Route path="terms" element={<Terms />} />
-          <Route path="privacy" element={<Privacy />} />
-          <Route path="success" element={<Success />} />
+      <Suspense>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<Home />} />
+            <Route path="products" element={<Products />} />
+            <Route path="products/new-arrivals" element={<NewArrivals />} />
+            <Route path="products/:id" element={<ProductDetail />} />
+            <Route path="login" element={<Login />} />
+            <Route path="register" element={<Register />} />
+            <Route path="cart" element={<Cart />} />
+            <Route path="shipping" element={<Shipping />} />
+            <Route path="contact" element={<Contact />} />
+            <Route path="faq" element={<FAQ />} />
+            <Route path="returns" element={<Returns />} />
+            <Route path="terms" element={<Terms />} />
+            <Route path="privacy" element={<Privacy />} />
+            <Route path="success" element={<Success />} />
 
-          <Route element={<ProtectedRoute />}>
-            <Route path="checkout" element={<Checkout />} />
-            <Route path="orders" element={<OrderHistory />} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="checkout" element={<Checkout />} />
+              <Route path="orders" element={<OrderHistory />} />
+            </Route>
+            <Route element={<AdminRoute />}>
+              <Route path="admin/products" element={<AdminProducts />} />
+            </Route>
           </Route>
-          <Route element={<AdminRoute />}>
-            <Route path="admin/products" element={<AdminProducts />} />
-          </Route>
-        </Route>
-      </Routes>
+        </Routes>
+      </Suspense>
       <Toaster />
     </BrowserRouter>
   );

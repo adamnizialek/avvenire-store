@@ -19,6 +19,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           <img
             src={resolveImageUrl(product.images[0])}
             alt={product.name}
+            loading="lazy"
             className={`h-full w-full object-cover transition-opacity duration-500 ${
               hasSecondImage ? 'group-hover:opacity-0' : ''
             }`}
@@ -27,6 +28,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             <img
               src={resolveImageUrl(product.images[1])}
               alt={product.name}
+              loading="lazy"
               className="absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-500 group-hover:opacity-100"
             />
           )}
