@@ -41,6 +41,9 @@ export default function Home() {
           autoPlay
           muted
           playsInline
+          // @ts-expect-error fetchpriority not in React types yet
+          fetchpriority="high"
+          preload="auto"
           className="absolute inset-0 h-full w-full object-cover"
         >
           <source src="/landing.mp4" type="video/mp4" />
