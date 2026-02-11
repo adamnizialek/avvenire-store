@@ -22,6 +22,8 @@ const FAQ = lazy(() => import('@/pages/FAQ'));
 const Returns = lazy(() => import('@/pages/Returns'));
 const Terms = lazy(() => import('@/pages/Terms'));
 const Privacy = lazy(() => import('@/pages/Privacy'));
+const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('@/pages/ResetPassword'));
 const AdminProducts = lazy(() => import('@/pages/admin/AdminProducts'));
 
 function App() {
@@ -42,6 +44,8 @@ function App() {
             <Route path="products/:id" element={<ProductDetail />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
+            <Route path="forgot-password" element={<ForgotPassword />} />
+            <Route path="reset-password" element={<ResetPassword />} />
             <Route path="cart" element={<Cart />} />
             <Route path="shipping" element={<Shipping />} />
             <Route path="contact" element={<Contact />} />

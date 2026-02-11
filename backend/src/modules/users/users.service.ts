@@ -1,7 +1,8 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThan } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { User } from './entities/user.entity';
 
 @Injectable()
@@ -36,5 +37,29 @@ export class UsersService {
       password: hashedPassword,
     });
     return this.usersRepository.save(user);
+  }
+
+  async createResetToken(email: string): Promise<string | null> {
+    const user = await this.findByEmail(email);
+    if (!user) return null;
+
+    const token = randomBytes(32).toString('hex');
+    user.resetToken = token;
+    user.resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await this.usersRepository.save(user);
+    return token;
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<boolean> {
+    const user = await this.usersRepository.findOne({
+      where: { resetToken: token, resetTokenExpiry: MoreThan(new Date()) },
+    });
+    if (!user) return false;
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.resetToken = null as any;
+    user.resetTokenExpiry = null as any;
+    await this.usersRepository.save(user);
+    return true;
   }
 }
