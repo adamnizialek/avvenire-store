@@ -19,6 +19,11 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { id } });
   }
 
+  async setRole(email: string, role: string): Promise<{ success: boolean }> {
+    await this.usersRepository.update({ email }, { role });
+    return { success: true };
+  }
+
   async create(email: string, password: string): Promise<User> {
     const existing = await this.findByEmail(email);
     if (existing) {
