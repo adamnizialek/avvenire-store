@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://avvenire.vercel.app/sitemap.xml
