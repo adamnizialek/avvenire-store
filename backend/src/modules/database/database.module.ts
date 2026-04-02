@@ -11,9 +11,11 @@ import { OrderItem } from '../orders/entities/order-item.entity';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.get<string>('DB_HOST', 'localhost'),
+      useFactory: (config: ConfigService) => {
+        const host = config.get<string>('DB_HOST') || config.get<string>('DATABASE_URL');
+        console.log('Connecting to database host:', host ? host.split('@').pop() : 'unknown');
+        return {
+          type: 'postgres',        host: config.get<string>('DB_HOST', 'localhost'),
         port: config.get<number>('DB_PORT', 5432),
         username: config.get<string>('DB_USERNAME', 'postgres'),
         password: config.get<string>('DB_PASSWORD', 'postgres'),
