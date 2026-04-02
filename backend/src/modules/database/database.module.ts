@@ -18,6 +18,7 @@ import { OrderItem } from '../orders/entities/order-item.entity';
         username: config.get<string>('DB_USERNAME', 'postgres'),
         password: config.get<string>('DB_PASSWORD', 'postgres'),
         database: config.get<string>('DB_NAME', 'shop'),
+        ssl: config.get<string>('DB_SSL') === 'true' ? { rejectUnauthorized: false } : false,
         entities: [User, Product, Order, OrderItem],
         synchronize: config.get<string>('NODE_ENV') !== 'production',
       }),

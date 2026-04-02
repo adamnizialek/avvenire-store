@@ -1,4 +1,5 @@
-const BASE = 'http://localhost:3000/api';
+// You can pass the API URL as an argument, e.g., node seed.mjs https://your-app.onrender.com/api
+const BASE = process.argv[2] || 'http://localhost:3000/api';
 
 async function seed() {
   // 1. Register admin user
