@@ -15,15 +15,17 @@ import { OrderItem } from '../orders/entities/order-item.entity';
         const host = config.get<string>('DB_HOST') || config.get<string>('DATABASE_URL');
         console.log('Connecting to database host:', host ? host.split('@').pop() : 'unknown');
         return {
-          type: 'postgres',        host: config.get<string>('DB_HOST', 'localhost'),
-        port: config.get<number>('DB_PORT', 5432),
-        username: config.get<string>('DB_USERNAME', 'postgres'),
-        password: config.get<string>('DB_PASSWORD', 'postgres'),
-        database: config.get<string>('DB_NAME', 'shop'),
-        ssl: config.get<string>('DB_SSL') === 'true' ? { rejectUnauthorized: false } : false,
-        entities: [User, Product, Order, OrderItem],
-        synchronize: config.get<string>('NODE_ENV') !== 'production',
-      }),
+          type: 'postgres',
+          host: config.get<string>('DB_HOST', 'localhost'),
+          port: config.get<number>('DB_PORT', 5432),
+          username: config.get<string>('DB_USERNAME', 'postgres'),
+          password: config.get<string>('DB_PASSWORD', 'postgres'),
+          database: config.get<string>('DB_NAME', 'shop'),
+          ssl: config.get<string>('DB_SSL') === 'true' ? { rejectUnauthorized: false } : false,
+          entities: [User, Product, Order, OrderItem],
+          synchronize: config.get<string>('NODE_ENV') !== 'production',
+        };
+      },
     }),
   ],
 })
