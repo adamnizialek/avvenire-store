@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  // Force redeploy to refresh env vars on Render
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
   });
