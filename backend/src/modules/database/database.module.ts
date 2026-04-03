@@ -12,11 +12,11 @@ import { OrderItem } from '../orders/entities/order-item.entity';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const host = config.get<string>('DB_HOST') || config.get<string>('DATABASE_URL');
-        console.log('Connecting to database host:', host ? host.split('@').pop() : 'unknown');
+        const host = config.get<string>('DB_HOST') || 'localhost';
+        console.log('Connecting to database host:', host);
         return {
           type: 'postgres',
-          host: config.get<string>('DB_HOST', 'localhost'),
+          host: host,
           port: config.get<number>('DB_PORT', 5432),
           username: config.get<string>('DB_USERNAME', 'postgres'),
           password: config.get<string>('DB_PASSWORD', 'postgres'),
