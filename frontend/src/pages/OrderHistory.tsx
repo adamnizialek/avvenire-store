@@ -7,20 +7,19 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import api from '@/lib/axios';
-import { useCurrencyStore } from '@/stores/currencyStore';
 import { formatPrice } from '@/lib/currency';
 import type { Order } from '@/types';
 
 export default function OrderHistory() {
   const [orders, setOrders] = useState<Order[]>([]);
-  const currency = useCurrencyStore((state) => state.currency);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     api
       .get<Order[]>('/orders')
       .then((res) => setOrders(res.data))
-      .catch(() => {})
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
 
@@ -41,7 +40,11 @@ export default function OrderHistory() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="mb-8 text-3xl font-bold">My Orders</h1>
 
-      {orders.length === 0 ? (
+      {error ? (
+        <p className="text-center text-destructive">
+          Failed to load your orders. Please refresh to try again.
+        </p>
+      ) : orders.length === 0 ? (
         <p className="text-center text-muted-foreground">
           You haven't placed any orders yet.
         </p>
@@ -62,7 +65,7 @@ export default function OrderHistory() {
                     {order.status}
                   </Badge>
                   <span className="font-bold">
-                    {formatPrice(Number(order.totalAmount), currency)}
+                    {formatPrice(Number(order.totalAmount), 'USD')}
                   </span>
                 </div>
               </CardHeader>
@@ -86,7 +89,7 @@ export default function OrderHistory() {
                         {item.product?.name || 'Product'} x {item.quantity}
                       </span>
                       <span>
-                        {formatPrice(Number(item.price) * item.quantity, currency)}
+                        {formatPrice(Number(item.price) * item.quantity, 'USD')}
                       </span>
                     </div>
                   ))}

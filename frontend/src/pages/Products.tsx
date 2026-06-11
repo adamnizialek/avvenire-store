@@ -6,12 +6,13 @@ import type { Product } from '@/types';
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     api
       .get<Product[]>('/products')
       .then((res) => setProducts(res.data))
-      .catch(() => {})
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
 
@@ -28,6 +29,10 @@ export default function Products() {
             />
           ))}
         </div>
+      ) : error ? (
+        <p className="text-center text-destructive">
+          Failed to load products. Please refresh to try again.
+        </p>
       ) : products.length === 0 ? (
         <p className="text-center text-muted-foreground">
           No products available yet.

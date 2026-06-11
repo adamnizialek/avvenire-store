@@ -49,11 +49,15 @@ export default function Navbar() {
             </Link>
 
             <div className="group relative">
-              <button className="flex items-baseline gap-1 text-base font-medium transition-colors hover:text-primary">
+              <button
+                type="button"
+                aria-haspopup="true"
+                className="flex items-baseline gap-1 text-base font-medium transition-colors hover:text-primary"
+              >
                 Shop
-                <ChevronDown className="h-3.5 w-3.5 translate-y-px transition-transform group-hover:rotate-180" />
+                <ChevronDown className="h-3.5 w-3.5 translate-y-px transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
               </button>
-              <div className="invisible absolute left-0 top-full z-50 pt-2 opacity-0 transition-all group-hover:visible group-hover:opacity-100">
+              <div className="invisible absolute left-0 top-full z-50 pt-2 opacity-0 transition-all group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
                 <div className="min-w-[160px] rounded-md border bg-popover p-1 shadow-md">
                   <Link
                     to="/products"

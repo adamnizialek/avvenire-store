@@ -4,7 +4,9 @@ import { Toaster } from '@/components/ui/sonner';
 import Layout from '@/components/layout/Layout';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import AdminRoute from '@/components/layout/AdminRoute';
+import GuestRoute from '@/components/layout/GuestRoute';
 import Home from '@/pages/Home';
+import NotFound from '@/pages/NotFound';
 import { useAuthStore } from '@/stores/authStore';
 
 const Products = lazy(() => import('@/pages/Products'));
@@ -42,8 +44,10 @@ function App() {
             <Route path="products" element={<Products />} />
             <Route path="products/new-arrivals" element={<NewArrivals />} />
             <Route path="products/:id" element={<ProductDetail />} />
-            <Route path="login" element={<Login />} />
-            <Route path="register" element={<Register />} />
+            <Route element={<GuestRoute />}>
+              <Route path="login" element={<Login />} />
+              <Route path="register" element={<Register />} />
+            </Route>
             <Route path="forgot-password" element={<ForgotPassword />} />
             <Route path="reset-password" element={<ResetPassword />} />
             <Route path="cart" element={<Cart />} />
@@ -62,6 +66,8 @@ function App() {
             <Route element={<AdminRoute />}>
               <Route path="admin/products" element={<AdminProducts />} />
             </Route>
+
+            <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
       </Suspense>

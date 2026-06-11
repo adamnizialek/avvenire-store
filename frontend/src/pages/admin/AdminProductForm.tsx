@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import api from '@/lib/axios';
 import { resolveImageUrl } from '@/lib/image';
+import { getErrorMessage } from '@/lib/errors';
 import type { Product } from '@/types';
 
 const SIZE_PRESETS: Record<string, string[]> = {
@@ -37,16 +38,29 @@ export default function AdminProductForm({
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  // Track whether the admin actually touched inventory, so an edit that only
+  // changes (say) the name doesn't ship a stale stock snapshot that would
+  // overwrite decrements made by concurrent checkouts.
+  const [inventoryDirty, setInventoryDirty] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // When the category changes, re-map inventory to that category's sizes while
+  // preserving any quantities already entered for matching sizes. New products
+  // default unentered sizes to 10; edits default added sizes to 0 so existing
+  // counts are never silently inflated.
   useEffect(() => {
-    if (!product) {
-      const presets = SIZE_PRESETS[category] || [];
-      setInventory(presets.map((size) => ({ size, quantity: 10 })));
-    }
+    const presets = SIZE_PRESETS[category] || [];
+    setInventory((prev) =>
+      presets.map((size) => {
+        const existing = prev.find((inv) => inv.size === size);
+        if (existing) return existing;
+        return { size, quantity: product ? 0 : 10 };
+      }),
+    );
   }, [category, product]);
 
   const updateQuantity = (size: string, quantity: number) => {
+    setInventoryDirty(true);
     setInventory((prev) =>
       prev.map((inv) => (inv.size === size ? { ...inv, quantity } : inv)),
     );
@@ -59,21 +73,29 @@ export default function AdminProductForm({
     setUploading(true);
     setError('');
 
-    try {
-      for (const file of Array.from(files)) {
+    // Upload each file independently so one failure doesn't silently abort the
+    // rest, and report which files failed (and why) instead of a generic error.
+    const failures: string[] = [];
+    for (const file of Array.from(files)) {
+      try {
         const formData = new FormData();
         formData.append('file', file);
-        const res = await api.post<{ url: string }>('/products/upload', formData, {
-          headers: { 'Content-Type': undefined },
-        });
+        const res = await api.post<{ url: string }>(
+          '/products/upload',
+          formData,
+          { headers: { 'Content-Type': undefined } },
+        );
         setImages((prev) => [...prev, res.data.url]);
+      } catch (err) {
+        failures.push(`${file.name}: ${getErrorMessage(err, 'upload failed')}`);
       }
-    } catch {
-      setError('Failed to upload image');
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+
+    if (failures.length) {
+      setError(`Some images failed to upload — ${failures.join('; ')}`);
+    }
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const removeImage = (index: number) => {
@@ -81,26 +103,49 @@ export default function AdminProductForm({
   };
 
   const addManualUrl = () => {
-    if (manualUrl.trim()) {
-      setImages((prev) => [...prev, manualUrl.trim()]);
-      setManualUrl('');
+    const url = manualUrl.trim();
+    if (!url) return;
+    if (!URL.canParse(url)) {
+      setError('Please enter a valid image URL (including https://).');
+      return;
     }
+    setImages((prev) => [...prev, url]);
+    setManualUrl('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!name.trim() || !description.trim()) {
+      setError('Name and description cannot be empty.');
+      return;
+    }
+    const parsedPrice = parseFloat(price);
+    if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
+      setError('Please enter a valid price.');
+      return;
+    }
+    if (images.length === 0) {
+      setError('Please add at least one product image.');
+      return;
+    }
+
     setLoading(true);
 
-    const data = {
-      name,
-      description,
-      price: parseFloat(price),
+    const data: Record<string, unknown> = {
+      name: name.trim(),
+      description: description.trim(),
+      price: parsedPrice,
       images,
       stripePriceId: stripePriceId || null,
       category,
-      inventory,
     };
+    // Only send inventory when creating, or when the admin actually edited it —
+    // otherwise we'd clobber stock decremented by concurrent checkouts.
+    if (!product || inventoryDirty) {
+      data.inventory = inventory;
+    }
 
     try {
       if (product) {
@@ -109,8 +154,8 @@ export default function AdminProductForm({
         await api.post('/products', data);
       }
       onSave();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to save product');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to save product'));
     } finally {
       setLoading(false);
     }
@@ -164,7 +209,10 @@ export default function AdminProductForm({
         <select
           id="category"
           value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          onChange={(e) => {
+            setInventoryDirty(true);
+            setCategory(e.target.value);
+          }}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <option value="clothing">Clothing</option>

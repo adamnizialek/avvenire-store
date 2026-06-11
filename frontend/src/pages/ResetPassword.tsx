@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,15 +12,25 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import api from '@/lib/axios';
+import { getErrorMessage } from '@/lib/errors';
 
 export default function ResetPassword() {
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Capture the token once, then strip it from the URL so the credential
+  // doesn't linger in the address bar / browser history.
+  const [token] = useState(() => searchParams.get('token'));
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('token')) {
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!token) {
     return (
@@ -51,15 +61,18 @@ export default function ResetPassword() {
       return;
     }
 
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+
     setLoading(true);
 
     try {
       await api.post('/auth/reset-password', { token, password });
       setSuccess(true);
-    } catch (err: any) {
-      setError(
-        err.response?.data?.message || 'Invalid or expired reset token',
-      );
+    } catch (err) {
+      setError(getErrorMessage(err, 'Invalid or expired reset token'));
     } finally {
       setLoading(false);
     }
@@ -106,7 +119,7 @@ export default function ResetPassword() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                minLength={6}
+                minLength={8}
                 required
               />
             </div>
@@ -117,7 +130,7 @@ export default function ResetPassword() {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                minLength={6}
+                minLength={8}
                 required
               />
             </div>

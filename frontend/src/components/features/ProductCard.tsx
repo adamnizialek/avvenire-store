@@ -17,18 +17,20 @@ export default function ProductCard({ product }: ProductCardProps) {
       {product.images?.[0] ? (
         <div className="relative aspect-[3/4] overflow-hidden bg-neutral-200">
           <img
-            src={resolveImageUrl(product.images[0])}
+            src={resolveImageUrl(product.images[0], 600)}
             alt={product.name}
             loading="lazy"
+            decoding="async"
             className={`h-full w-full object-cover transition-opacity duration-500 ${
               hasSecondImage ? 'group-hover:opacity-0' : ''
             }`}
           />
           {hasSecondImage && (
             <img
-              src={resolveImageUrl(product.images[1])}
+              src={resolveImageUrl(product.images[1], 600)}
               alt={product.name}
               loading="lazy"
+              decoding="async"
               className="absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-500 group-hover:opacity-100"
             />
           )}

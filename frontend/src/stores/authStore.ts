@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import api from '@/lib/axios';
+import { useCartStore } from '@/stores/cartStore';
 import type { User, AuthResponse } from '@/types';
 
 interface AuthState {
@@ -42,6 +43,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');
+    // Don't leave the previous user's cart for the next person on a shared device.
+    useCartStore.getState().clearCart();
     set({ token: null, user: null });
   },
 
@@ -51,7 +54,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (token && userStr) {
       try {
         const user = JSON.parse(userStr);
+        // Hydrate immediately for fast first paint...
         set({ token, user, isLoading: false });
+        // ...then confirm the token is still valid and refresh the role from the
+        // server (a 401 is handled by the axios interceptor, which logs out).
+        api
+          .get<User>('/auth/profile')
+          .then((res) => {
+            localStorage.setItem('auth_user', JSON.stringify(res.data));
+            set({ user: res.data });
+          })
+          .catch(() => {});
       } catch {
         set({ isLoading: false });
       }

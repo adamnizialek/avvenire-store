@@ -41,6 +41,11 @@ export const useCartStore = create<CartState>()(
           });
           return true;
         }
+        // Enforce stock on the first add too (e.g. item went out of stock
+        // after the page loaded).
+        if (item.maxQuantity !== undefined && item.maxQuantity < 1) {
+          return false;
+        }
         set({ items: [...state.items, { ...item, quantity: 1 }] });
         return true;
       },
@@ -92,6 +97,7 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'cart-storage',
+      version: 1,
       storage: createJSONStorage(() => localStorage),
     },
   ),
