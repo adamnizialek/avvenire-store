@@ -4,10 +4,9 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
-import { ProductsService } from '../products/products.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Product } from '../products/entities/product.entity';
 
@@ -16,42 +15,63 @@ export class OrdersService {
   constructor(
     @InjectRepository(Order)
     private ordersRepository: Repository<Order>,
-    @InjectRepository(OrderItem)
-    private orderItemsRepository: Repository<OrderItem>,
-    @InjectRepository(Product)
-    private productsRepository: Repository<Product>,
-    private productsService: ProductsService,
     private dataSource: DataSource,
   ) {}
 
+  private async lockProduct(
+    manager: EntityManager,
+    productId: string,
+  ): Promise<Product> {
+    const product = await manager.findOne(Product, {
+      where: { id: productId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!product) {
+      throw new NotFoundException(`Product ${productId} not found`);
+    }
+    return product;
+  }
+
   async create(userId: string, dto: CreateOrderDto): Promise<Order> {
+    if (!dto.items?.length) {
+      throw new BadRequestException('Order must contain at least one item');
+    }
+
     return this.dataSource.transaction(async (manager) => {
-      let totalAmount = 0;
+      let totalCents = 0;
       const itemsData: Partial<OrderItem>[] = [];
 
       for (const item of dto.items) {
-        const product = await this.productsService.findById(item.productId);
-        const itemTotal = Number(product.price) * item.quantity;
-        totalAmount += itemTotal;
+        // Lock the row for the duration of the transaction. Re-reading the same
+        // product later in the loop (e.g. same product in two sizes) sees the
+        // already-applied decrements, and concurrent checkouts block here —
+        // preventing oversell and lost updates.
+        const product = await this.lockProduct(manager, item.productId);
 
-        // Validate and deduct inventory
-        if (item.size) {
-          const inventoryEntry = product.inventory.find(
-            (inv) => inv.size === item.size,
-          );
-          if (!inventoryEntry) {
+        const inventory = product.inventory ?? [];
+        if (inventory.length > 0) {
+          if (!item.size) {
+            throw new BadRequestException(
+              `Size is required for ${product.name}`,
+            );
+          }
+          const entry = inventory.find((inv) => inv.size === item.size);
+          if (!entry) {
             throw new BadRequestException(
               `Size ${item.size} is not available for ${product.name}`,
             );
           }
-          if (inventoryEntry.quantity < item.quantity) {
+          if (entry.quantity < item.quantity) {
             throw new BadRequestException(
-              `Not enough stock for ${product.name} (${item.size}). Available: ${inventoryEntry.quantity}`,
+              `Not enough stock for ${product.name} (${item.size}). Available: ${entry.quantity}`,
             );
           }
-          inventoryEntry.quantity -= item.quantity;
+          entry.quantity -= item.quantity;
+          product.inventory = inventory;
           await manager.save(product);
         }
+
+        totalCents += Math.round(Number(product.price) * 100) * item.quantity;
 
         itemsData.push({
           productId: item.productId,
@@ -63,12 +83,52 @@ export class OrdersService {
 
       const order = manager.create(Order, {
         userId,
-        totalAmount,
+        totalAmount: totalCents / 100,
         status: 'pending',
         items: itemsData as OrderItem[],
       });
 
       return manager.save(order);
+    });
+  }
+
+  /**
+   * Marks a pending order paid. Idempotent: replays and orders that are no
+   * longer pending (already completed/cancelled) are left untouched.
+   */
+  async markPaid(id: string): Promise<void> {
+    await this.ordersRepository.update(
+      { id, status: 'pending' },
+      { status: 'completed' },
+    );
+  }
+
+  /**
+   * Cancels a still-pending order and returns its reserved stock. Idempotent
+   * and safe to call from expired/failed-payment webhooks.
+   */
+  async cancelAndRestock(id: string): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const order = await manager.findOne(Order, {
+        where: { id },
+        relations: ['items'],
+      });
+      if (!order || order.status !== 'pending') {
+        return;
+      }
+      for (const item of order.items) {
+        if (!item.size) continue;
+        const product = await this.lockProduct(manager, item.productId);
+        const inventory = product.inventory ?? [];
+        const entry = inventory.find((inv) => inv.size === item.size);
+        if (entry) {
+          entry.quantity += item.quantity;
+          product.inventory = inventory;
+          await manager.save(product);
+        }
+      }
+      order.status = 'cancelled';
+      await manager.save(order);
     });
   }
 
@@ -99,12 +159,6 @@ export class OrdersService {
     return order;
   }
 
-  async updateStatus(id: string, status: string): Promise<Order> {
-    const order = await this.findById(id);
-    order.status = status;
-    return this.ordersRepository.save(order);
-  }
-
   async setStripeSessionId(id: string, sessionId: string): Promise<Order> {
     const order = await this.findById(id);
     order.stripeSessionId = sessionId;
@@ -116,5 +170,16 @@ export class OrdersService {
       where: { stripeSessionId: sessionId },
       relations: ['items', 'items.product'],
     });
+  }
+
+  async findBySessionForUser(
+    sessionId: string,
+    userId: string,
+  ): Promise<{ id: string; status: string }> {
+    const order = await this.findByStripeSessionId(sessionId);
+    if (!order || order.userId !== userId) {
+      throw new NotFoundException('Order not found');
+    }
+    return { id: order.id, status: order.status };
   }
 }

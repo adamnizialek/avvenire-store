@@ -4,25 +4,33 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { Order } from './order.entity';
 import { Product } from '../../products/entities/product.entity';
+import { decimalTransformer } from '../../../common/decimal.transformer';
 
 @Entity('order_items')
 export class OrderItem {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @Column()
   orderId: string;
 
+  @Index()
   @Column()
   productId: string;
 
   @Column('int')
   quantity: number;
 
-  @Column('real')
+  @Column('numeric', {
+    precision: 10,
+    scale: 2,
+    transformer: decimalTransformer,
+  })
   price: number;
 
   @Column('varchar', { nullable: true })
