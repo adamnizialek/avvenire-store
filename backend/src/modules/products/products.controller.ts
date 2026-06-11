@@ -10,6 +10,7 @@ import {
   UseInterceptors,
   UploadedFile,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -30,8 +31,16 @@ export class ProductsController {
 
   @Public()
   @Get()
-  findAll(@Query('category') category?: string) {
-    return this.productsService.findAll(category);
+  findAll(
+    @Query('category') category?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.productsService.findAll(
+      category,
+      limit ? Number(limit) : undefined,
+      offset ? Number(offset) : undefined,
+    );
   }
 
   @Post('upload')
@@ -44,7 +53,7 @@ export class ProductsController {
         if (file.mimetype.startsWith('image/')) {
           cb(null, true);
         } else {
-          cb(new Error('Only image files are allowed'), false);
+          cb(new BadRequestException('Only image files are allowed'), false);
         }
       },
       limits: { fileSize: 10 * 1024 * 1024 },
