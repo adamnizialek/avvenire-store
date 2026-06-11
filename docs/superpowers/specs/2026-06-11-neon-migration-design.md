@@ -39,15 +39,19 @@ zmian w kodzie backendu (jak w commitach f4290d7/57a6284):
 
 Backend, frontend i lokalny dev (docker-compose) — bez zmian.
 
-## Przebieg migracji
+## Przebieg migracji (faktyczny)
 
 1. Projekt w Neon utworzony przez użytkownika (region eu-central-1).
    Połączenie przez **direct endpoint** (nie `-pooler` — to PgBouncer
    w trybie transaction, niewskazany dla długożyjącego serwera z TypeORM).
-2. Schemat: backend uruchomiony lokalnie ze wskazaniem na Neon —
-   TypeORM `synchronize` (aktywny gdy `NODE_ENV !== 'production'`) tworzy tabele.
-3. Seed lokalnie: rejestracja admina → `UPDATE users SET role='admin'`
-   bezpośrednio na Neonie → `node seed.mjs` → produkty.
+2. **Odkrycie w trakcie:** lokalna sieć użytkownika blokuje protokół Postgres
+   na porcie 5432 (TCP wstaje, reset po SSLRequest — DPI). Dlatego schemat
+   i seed wykonano driverem `@neondatabase/serverless` (WebSocket/HTTP,
+   port 443) zamiast lokalnie uruchomionego backendu.
+3. Nowy skrypt `backend/scripts/seed-direct.mjs`: TypeORM DataSource
+   z driverem Neon + skompilowane encje z `dist/` → `synchronize` tworzy
+   schemat, upsert admina (bcrypt), insert produktów z `seed.mjs`
+   (tablica `products` jest teraz eksportowana z modułu).
 4. Render: podmiana env varów `DB_*` na wartości z Neon → redeploy →
    weryfikacja w logach (`Connecting to database host:`).
 5. Weryfikacja end-to-end: produkty na froncie, rejestracja/login.

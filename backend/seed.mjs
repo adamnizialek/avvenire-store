@@ -1,24 +1,43 @@
-// You can pass the API URL as an argument, e.g., node seed.mjs https://your-app.onrender.com/api
+// Usage: node seed.mjs [apiUrl] [adminEmail] [adminPassword]
+//   e.g., node seed.mjs https://your-app.onrender.com/api admin@avvenire.com 'S3cret!'
+// Credentials can also be passed via SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD env vars.
+// The account must have the 'admin' role. If it doesn't exist yet, the script
+// registers it and prints the SQL needed to promote it — then re-run the script.
 const BASE = process.argv[2] || 'http://localhost:3000/api';
+const ADMIN_EMAIL = process.argv[3] || process.env.SEED_ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.argv[4] || process.env.SEED_ADMIN_PASSWORD;
 
-async function seed() {
-  // 1. Register admin user
-  const regRes = await fetch(`${BASE}/auth/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'admin@avvenire.com', password: 'Admin123!' }),
-  });
-  const auth = await regRes.json();
-  const token = auth.access_token;
-  console.log('Registered:', auth.user?.email || 'already exists');
+const PROMOTE_HINT = (email) =>
+  `Run this SQL on the database, then re-run the script:\n  UPDATE users SET role='admin' WHERE email='${email}';`;
 
-  const headers = {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
-  };
+async function authenticate() {
+  const post = (path) =>
+    fetch(`${BASE}/auth/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }),
+    }).then((r) => r.json());
 
-  // 2. Create luxury fashion products
-  const products = [
+  let auth = await post('login');
+  if (!auth.access_token) {
+    auth = await post('register');
+    if (!auth.access_token) {
+      console.error('Login and registration both failed:', auth);
+      process.exit(1);
+    }
+    console.log('Registered new account:', ADMIN_EMAIL);
+  }
+
+  if (auth.user?.role !== 'admin') {
+    console.error(`Account ${ADMIN_EMAIL} has role '${auth.user?.role}', not 'admin'.`);
+    console.error(PROMOTE_HINT(ADMIN_EMAIL));
+    process.exit(1);
+  }
+  return auth.access_token;
+}
+
+// Luxury fashion products (also imported by one-off migration scripts)
+export const products = [
     {
       name: 'Cashmere Overcoat',
       description: 'Luxuriously soft double-breasted cashmere overcoat. Crafted from premium Italian cashmere with a relaxed silhouette, this timeless piece features horn buttons and a half-canvas construction for a refined drape.',
@@ -107,7 +126,24 @@ async function seed() {
         'https://images.unsplash.com/photo-1598033129183-c4f50c736c10?w=800&q=80',
       ],
     },
-  ];
+];
+
+async function seed() {
+  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+    console.error('Missing admin credentials.');
+    console.error('Usage: node seed.mjs [apiUrl] <adminEmail> <adminPassword>');
+    console.error('   or: SEED_ADMIN_EMAIL=... SEED_ADMIN_PASSWORD=... node seed.mjs [apiUrl]');
+    process.exit(1);
+  }
+  console.log('Seeding to:', BASE);
+  console.log('Using admin email:', ADMIN_EMAIL);
+
+  const token = await authenticate();
+
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  };
 
   for (const product of products) {
     const res = await fetch(`${BASE}/products`, {
@@ -116,10 +152,14 @@ async function seed() {
       body: JSON.stringify(product),
     });
     const data = await res.json();
-    console.log(`Created: ${data.name || data.message}`);
+    console.log(`Product: ${product.name} -> Status: ${res.status} ${data.name ? 'Created' : data.message}`);
   }
 
-  console.log('\nDone! Created', products.length, 'luxury fashion products.');
+  console.log('\nDone!');
 }
 
-seed().catch(console.error);
+// Only run when executed directly (the products array is importable as a module)
+import { pathToFileURL } from 'node:url';
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  seed().catch(console.error);
+}
