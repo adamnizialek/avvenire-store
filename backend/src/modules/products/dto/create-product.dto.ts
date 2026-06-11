@@ -4,6 +4,8 @@ import {
   IsOptional,
   IsArray,
   IsInt,
+  IsNotEmpty,
+  ArrayMinSize,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -11,6 +13,7 @@ import { Type } from 'class-transformer';
 
 export class InventoryItemDto {
   @IsString()
+  @IsNotEmpty()
   size: string;
 
   @IsInt()
@@ -20,9 +23,11 @@ export class InventoryItemDto {
 
 export class CreateProductDto {
   @IsString()
+  @IsNotEmpty()
   name: string;
 
   @IsString()
+  @IsNotEmpty()
   description: string;
 
   @IsNumber()
@@ -30,9 +35,11 @@ export class CreateProductDto {
   price: number;
 
   @IsString()
+  @IsNotEmpty()
   category: string;
 
   @IsArray()
+  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => InventoryItemDto)
   inventory: InventoryItemDto[];

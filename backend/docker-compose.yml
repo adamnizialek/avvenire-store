@@ -6,11 +6,12 @@ services:
     container_name: shop-postgres
     restart: unless-stopped
     ports:
-      - '5432:5432'
+      # Bind to loopback only so the dev database isn't exposed to the network.
+      - '127.0.0.1:5432:5432'
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: shop
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-shop}
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

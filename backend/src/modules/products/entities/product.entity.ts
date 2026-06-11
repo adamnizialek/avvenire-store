@@ -4,8 +4,10 @@ import {
   Column,
   CreateDateColumn,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { OrderItem } from '../../orders/entities/order-item.entity';
+import { decimalTransformer } from '../../../common/decimal.transformer';
 
 @Entity('products')
 export class Product {
@@ -18,9 +20,14 @@ export class Product {
   @Column('text')
   description: string;
 
-  @Column('real')
+  @Column('numeric', {
+    precision: 10,
+    scale: 2,
+    transformer: decimalTransformer,
+  })
   price: number;
 
+  @Index()
   @Column({ default: 'clothing' })
   category: string;
 

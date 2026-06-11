@@ -1,14 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
 
 @Injectable()
 export class MailService {
+  private readonly logger = new Logger(MailService.name);
   private resend: Resend;
   private fromEmail: string;
 
   constructor(private config: ConfigService) {
-    this.resend = new Resend(this.config.get<string>('RESEND_API_KEY'));
+    const apiKey = this.config.get<string>('RESEND_API_KEY');
+    if (!apiKey) {
+      this.logger.warn(
+        'RESEND_API_KEY is not set — password reset emails will fail.',
+      );
+    }
+    this.resend = new Resend(apiKey);
     this.fromEmail = this.config.get<string>(
       'MAIL_FROM',
       'AVVENIRE <onboarding@resend.dev>',
@@ -16,7 +23,8 @@ export class MailService {
   }
 
   async sendPasswordReset(to: string, resetUrl: string): Promise<void> {
-    await this.resend.emails.send({
+    // The Resend SDK resolves (does not throw) on API errors — inspect `error`.
+    const { error } = await this.resend.emails.send({
       from: this.fromEmail,
       to,
       subject: 'Reset your password — AVVENIRE',
@@ -31,5 +39,10 @@ export class MailService {
         </div>
       `,
     });
+
+    if (error) {
+      this.logger.error(`Resend failed to send to ${to}: ${error.message}`);
+      throw new Error(`Failed to send password reset email: ${error.message}`);
+    }
   }
 }

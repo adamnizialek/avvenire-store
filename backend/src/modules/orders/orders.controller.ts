@@ -16,6 +16,11 @@ export class OrdersController {
     return this.ordersService.findByUserId(req.user.userId);
   }
 
+  @Get('session/:sessionId')
+  findBySession(@Param('sessionId') sessionId: string, @Request() req: any) {
+    return this.ordersService.findBySessionForUser(sessionId, req.user.userId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @Request() req: any) {
     return this.ordersService.findByIdForUser(id, req.user.userId);

@@ -28,13 +28,26 @@ export default function ProductDetail() {
     setSelectedSize(null);
     setSizeError(false);
     setStockError(false);
-    if (id) {
-      api
-        .get<Product>(`/products/${id}`)
-        .then((res) => setProduct(res.data))
-        .catch(() => {})
-        .finally(() => setLoading(false));
-    }
+    if (!id) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setProduct(null);
+    api
+      .get<Product>(`/products/${id}`)
+      .then((res) => {
+        if (!cancelled) setProduct(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setProduct(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   useEffect(() => {

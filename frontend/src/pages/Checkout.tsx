@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useRef, useState } from 'react';
+import { Navigate } from 'react-router';
 import { CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -13,6 +13,7 @@ import {
 import { useCartStore } from '@/stores/cartStore';
 import { useCurrencyStore } from '@/stores/currencyStore';
 import { formatPrice } from '@/lib/currency';
+import { getErrorMessage } from '@/lib/errors';
 import api from '@/lib/axios';
 
 export default function Checkout() {
@@ -20,11 +21,12 @@ export default function Checkout() {
   const currency = useCurrencyStore((state) => state.currency);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
+  // Remember the created order so a retry of the Stripe step reuses it instead
+  // of creating a second order (which would deduct stock twice).
+  const createdOrderId = useRef<string | null>(null);
 
   if (items.length === 0) {
-    navigate('/cart');
-    return null;
+    return <Navigate to="/cart" replace />;
   }
 
   const handleCheckout = async () => {
@@ -32,24 +34,27 @@ export default function Checkout() {
     setError('');
 
     try {
-      // 1. Create order
-      const orderResponse = await api.post('/orders', {
-        items: items.map((item) => ({
-          productId: item.id,
-          quantity: item.quantity,
-          size: item.size,
-        })),
-      });
+      // 1. Create the order once; reuse it on retry.
+      if (!createdOrderId.current) {
+        const orderResponse = await api.post('/orders', {
+          items: items.map((item) => ({
+            productId: item.id,
+            quantity: item.quantity,
+            size: item.size,
+          })),
+        });
+        createdOrderId.current = orderResponse.data.id;
+      }
 
       // 2. Create Stripe checkout session
       const stripeResponse = await api.post('/stripe/create-checkout-session', {
-        orderId: orderResponse.data.id,
+        orderId: createdOrderId.current,
       });
 
       // 3. Redirect to Stripe
       window.location.href = stripeResponse.data.url;
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Checkout failed. Please try again.');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Checkout failed. Please try again.'));
       setLoading(false);
     }
   };

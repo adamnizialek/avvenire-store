@@ -13,7 +13,11 @@ import { OrderItem } from '../orders/entities/order-item.entity';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const host = config.get<string>('DB_HOST') || 'localhost';
-        console.log('Connecting to database host:', host);
+        const useSsl = config.get<string>('DB_SSL') === 'true';
+        // Verify the server certificate by default; only disable when the
+        // provider's CA is genuinely unavailable (set DB_SSL_REJECT_UNAUTHORIZED=false).
+        const rejectUnauthorized =
+          config.get<string>('DB_SSL_REJECT_UNAUTHORIZED') !== 'false';
         return {
           type: 'postgres',
           host: host,
@@ -21,9 +25,12 @@ import { OrderItem } from '../orders/entities/order-item.entity';
           username: config.get<string>('DB_USERNAME', 'postgres'),
           password: config.get<string>('DB_PASSWORD', 'postgres'),
           database: config.get<string>('DB_NAME', 'shop'),
-          ssl: config.get<string>('DB_SSL') === 'true' ? { rejectUnauthorized: false } : false,
+          ssl: useSsl ? { rejectUnauthorized } : false,
           entities: [User, Product, Order, OrderItem],
-          synchronize: config.get<string>('NODE_ENV') !== 'production',
+          // Opt-in only. Auto-sync can ALTER/DROP production columns, so it must
+          // never default to on. Set DB_SYNCHRONIZE=true to apply schema changes
+          // (e.g. on a deploy), then turn it back off. Prefer migrations.
+          synchronize: config.get<string>('DB_SYNCHRONIZE') === 'true',
         };
       },
     }),
