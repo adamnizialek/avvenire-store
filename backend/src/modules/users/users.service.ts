@@ -2,8 +2,12 @@ import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 import { User } from './entities/user.entity';
+
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 @Injectable()
 export class UsersService {
@@ -12,8 +16,16 @@ export class UsersService {
     private usersRepository: Repository<User>,
   ) {}
 
+  /**
+   * Returns the user including the password hash and tokenVersion (both
+   * select:false by default). Use only for authentication — never return the
+   * result directly to a client.
+   */
   async findByEmail(email: string): Promise<User | null> {
-    return this.usersRepository.findOne({ where: { email } });
+    return this.usersRepository.findOne({
+      where: { email },
+      select: ['id', 'email', 'password', 'role', 'tokenVersion', 'createdAt'],
+    });
   }
 
   async findById(id: string): Promise<User | null> {
@@ -26,7 +38,7 @@ export class UsersService {
   }
 
   async create(email: string, password: string): Promise<User> {
-    const existing = await this.findByEmail(email);
+    const existing = await this.usersRepository.findOne({ where: { email } });
     if (existing) {
       throw new ConflictException('Email already exists');
     }
@@ -40,11 +52,12 @@ export class UsersService {
   }
 
   async createResetToken(email: string): Promise<string | null> {
-    const user = await this.findByEmail(email);
+    const user = await this.usersRepository.findOne({ where: { email } });
     if (!user) return null;
 
     const token = randomBytes(32).toString('hex');
-    user.resetToken = token;
+    // Store only the hash; the raw token lives only in the emailed link.
+    user.resetToken = hashToken(token);
     user.resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await this.usersRepository.save(user);
     return token;
@@ -52,13 +65,18 @@ export class UsersService {
 
   async resetPassword(token: string, newPassword: string): Promise<boolean> {
     const user = await this.usersRepository.findOne({
-      where: { resetToken: token, resetTokenExpiry: MoreThan(new Date()) },
+      where: {
+        resetToken: hashToken(token),
+        resetTokenExpiry: MoreThan(new Date()),
+      },
     });
     if (!user) return false;
 
     user.password = await bcrypt.hash(newPassword, 10);
-    user.resetToken = null as any;
-    user.resetTokenExpiry = null as any;
+    user.resetToken = null;
+    user.resetTokenExpiry = null;
+    // Invalidate every JWT issued before this reset.
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     await this.usersRepository.save(user);
     return true;
   }

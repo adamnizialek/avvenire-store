@@ -15,17 +15,22 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  @Column()
+  @Column({ select: false })
   password: string;
 
   @Column({ default: 'user' })
   role: string;
 
-  @Column({ nullable: true })
-  resetToken: string;
+  // Bumped whenever credentials change; embedded in the JWT so old tokens
+  // (e.g. an attacker's stolen token) are rejected after a password reset.
+  @Column({ type: 'int', default: 0 })
+  tokenVersion: number;
 
-  @Column({ type: 'timestamp', nullable: true })
-  resetTokenExpiry: Date;
+  @Column({ type: 'varchar', nullable: true, select: false })
+  resetToken: string | null;
+
+  @Column({ type: 'timestamp', nullable: true, select: false })
+  resetTokenExpiry: Date | null;
 
   @CreateDateColumn()
   createdAt: Date;
