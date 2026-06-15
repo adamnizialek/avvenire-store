@@ -121,7 +121,7 @@ export default function ProductDetail() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-0">
+      <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-0">
         {/* Image collage - left side */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-neutral-200">
           {images.length > 0 ? (
