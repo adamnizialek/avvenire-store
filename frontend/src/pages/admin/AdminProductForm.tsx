@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Upload, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import api from '@/lib/axios';
 import { resolveImageUrl } from '@/lib/image';
@@ -189,12 +190,17 @@ export default function AdminProductForm({
 
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
-        <Input
+        <Textarea
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          rows={8}
           required
         />
+        <p className="text-xs text-muted-foreground">
+          Supports Markdown — use <code>## Heading</code>, <code>**bold**</code>,
+          and <code>- bullet lists</code> to structure longer descriptions.
+        </p>
       </div>
 
       <div className="space-y-2">
