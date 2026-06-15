@@ -40,6 +40,7 @@ export class UpdateProductDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
+  @Type(() => ProductImageDto)
   @Transform(toProductImageDtos)
   images?: ProductImageDto[];
 
