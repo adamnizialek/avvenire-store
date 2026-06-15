@@ -8,6 +8,7 @@ import { QueryFailedError, Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { normalizeImages } from './product-image';
 
 const DEFAULT_LIMIT = 24;
 const MAX_LIMIT = 100;
@@ -18,6 +19,11 @@ export class ProductsService {
     @InjectRepository(Product)
     private productsRepository: Repository<Product>,
   ) {}
+
+  private withNormalizedImages(product: Product): Product {
+    product.images = normalizeImages(product.images);
+    return product;
+  }
 
   async findAll(
     category?: string,
@@ -30,12 +36,13 @@ export class ProductsService {
       MAX_LIMIT,
     );
     const skip = Math.max(Number(offset) || 0, 0);
-    return this.productsRepository.find({
+    const products = await this.productsRepository.find({
       where,
       order: { createdAt: 'DESC' },
       take,
       skip,
     });
+    return products.map((product) => this.withNormalizedImages(product));
   }
 
   async findById(id: string): Promise<Product> {
@@ -43,12 +50,16 @@ export class ProductsService {
     if (!product) {
       throw new NotFoundException('Product not found');
     }
-    return product;
+    return this.withNormalizedImages(product);
   }
 
   async create(dto: CreateProductDto): Promise<Product> {
-    const product = this.productsRepository.create(dto);
-    return this.productsRepository.save(product);
+    const product = this.productsRepository.create({
+      ...dto,
+      images: normalizeImages(dto.images),
+    });
+    const saved = await this.productsRepository.save(product);
+    return this.withNormalizedImages(saved);
   }
 
   async update(id: string, dto: UpdateProductDto): Promise<Product> {
@@ -64,7 +75,9 @@ export class ProductsService {
       }
     }
     Object.assign(product, updates);
-    return this.productsRepository.save(product);
+    product.images = normalizeImages(product.images);
+    const saved = await this.productsRepository.save(product);
+    return this.withNormalizedImages(saved);
   }
 
   async remove(id: string): Promise<void> {

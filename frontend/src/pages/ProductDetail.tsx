@@ -98,7 +98,7 @@ export default function ProductDetail() {
       id: product.id,
       name: product.name,
       price: product.price,
-      imageUrl: images[0] ?? null,
+      imageUrl: images[0]?.url ?? null,
       size: selectedSize,
       maxQuantity: invEntry?.quantity,
     });
@@ -127,8 +127,8 @@ export default function ProductDetail() {
             images.map((img, i) => (
               <div key={i} className="bg-neutral-100">
                 <img
-                  src={resolveImageUrl(img)}
-                  alt={`${product.name} ${i + 1}`}
+                  src={resolveImageUrl(img.url)}
+                  alt={img.alt || `${product.name} ${i + 1}`}
                   loading="lazy"
                   className="aspect-[3/4] w-full object-cover"
                 />

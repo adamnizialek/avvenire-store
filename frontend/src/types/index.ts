@@ -10,6 +10,11 @@ export interface InventoryItem {
   quantity: number;
 }
 
+export interface ProductImage {
+  url: string;
+  alt?: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -17,7 +22,7 @@ export interface Product {
   price: number;
   category: string;
   inventory: InventoryItem[];
-  images: string[];
+  images: ProductImage[];
   stripePriceId: string | null;
   createdAt: string;
 }
