@@ -7,8 +7,8 @@ type RawImage = string | { url?: unknown; alt?: unknown } | null | undefined;
 
 /**
  * Normalize a stored/incoming images value into { url, alt } objects.
- * Tolerates the legacy `string[]` shape and any partial objects, trims urls,
- * defaults a missing alt to '', and drops entries that have no usable url.
+ * Tolerates the legacy `string[]` shape and any partial objects, trims urls
+ * and alt, defaults a missing alt to '', and drops entries with no usable url.
  */
 export function normalizeImages(raw: unknown): ProductImage[] {
   if (!Array.isArray(raw)) return [];
@@ -20,7 +20,7 @@ export function normalizeImages(raw: unknown): ProductImage[] {
     } else if (item && typeof item === 'object') {
       const url = typeof item.url === 'string' ? item.url.trim() : '';
       if (!url) continue;
-      const alt = typeof item.alt === 'string' ? item.alt : '';
+      const alt = typeof item.alt === 'string' ? item.alt.trim() : '';
       result.push({ url, alt });
     }
   }
