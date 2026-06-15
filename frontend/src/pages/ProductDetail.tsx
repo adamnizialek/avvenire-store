@@ -142,19 +142,20 @@ export default function ProductDetail() {
           )}
         </div>
 
-        {/* Product info - right side, sticky. Cap the pinned panel to the
-            viewport and let it scroll internally so a long Markdown description
-            can never push the size selector / Add to Cart below the fold. */}
-        <div className="p-4 pt-6 md:self-start md:sticky md:top-0 md:max-h-[calc(100vh-2rem)] md:overflow-y-auto md:p-8 md:pt-12">
+        {/* Product info — right side. Buy box (price, size, Add to Cart) comes
+            first so it's reachable without scrolling; the long Markdown
+            description follows below it. No internal scroll / sticky height cap —
+            that previously trapped the Add to Cart button inside a nested scroll
+            pane, hiding it when the description was scrolled. */}
+        <div className="p-4 pt-6 md:self-start md:p-8 md:pt-12">
           <h1 className="text-2xl font-bold">{product.name}</h1>
           <p className="mt-3 text-xl font-bold">
             {formatPrice(Number(product.price), currency)}
           </p>
           <Separator className="my-5" />
-          <Markdown>{product.description}</Markdown>
 
           {hasSizes && (
-            <div className="mt-6">
+            <div>
               <p className="mb-3 text-sm font-medium">
                 Size{' '}
                 {sizeError && (
@@ -199,6 +200,9 @@ export default function ProductDetail() {
               All available stock for this size is already in your cart.
             </p>
           )}
+
+          <Separator className="my-8" />
+          <Markdown>{product.description}</Markdown>
         </div>
       </div>
 
