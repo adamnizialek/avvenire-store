@@ -259,9 +259,10 @@ export default function AdminProductForm({
           className="hidden"
         />
 
-        {/* Image previews */}
+        {/* Image previews. Create mode shows an alt-text input per image (rows);
+            edit mode just shows the compact thumbnail grid. */}
         {images.length > 0 && (
-          <div className="space-y-2">
+          <div className={product ? 'flex flex-wrap gap-2' : 'space-y-2'}>
             {images.map((img, i) => (
               <div key={i} className="flex items-start gap-3">
                 <div className="group/img relative shrink-0">
@@ -273,6 +274,7 @@ export default function AdminProductForm({
                   <button
                     type="button"
                     onClick={() => removeImage(i)}
+                    aria-label={`Remove image ${i + 1}`}
                     className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white shadow-sm"
                   >
                     <X className="h-3 w-3" />
