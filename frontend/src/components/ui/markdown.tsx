@@ -1,4 +1,5 @@
 import ReactMarkdown, { type Components } from 'react-markdown';
+import remarkBreaks from 'remark-breaks';
 import { cn } from '@/lib/utils';
 
 // Section headings share one look. Authors writing `#` get downgraded to <h2>
@@ -46,11 +47,19 @@ interface MarkdownProps {
 /**
  * Renders trusted Markdown content with the store's typography. Raw HTML is not
  * rendered (no rehype-raw), so descriptions cannot inject markup — XSS-safe.
+ *
+ * remark-breaks turns a single newline into a hard line break (<br>). Without
+ * it, CommonMark treats a lone newline as a soft break that the browser
+ * collapses to a space, so descriptions typed in the admin textarea (one Enter
+ * between lines) render as one run-on block. Blank-line paragraphs, headings,
+ * and lists are unaffected — the plugin only rewrites intra-block soft breaks.
  */
 export function Markdown({ children, className }: MarkdownProps) {
   return (
     <div className={cn('text-sm leading-relaxed text-muted-foreground', className)}>
-      <ReactMarkdown components={components}>{children}</ReactMarkdown>
+      <ReactMarkdown components={components} remarkPlugins={[remarkBreaks]}>
+        {children}
+      </ReactMarkdown>
     </div>
   );
 }
