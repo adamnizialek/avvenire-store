@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, X, Plus, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Upload, X, Plus, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -280,12 +280,11 @@ export default function AdminProductForm({
         />
 
         {/* Image previews + reorder controls. The first image is the product's
-            primary (drives the card, cart thumbnail, and Stripe). Create mode
-            shows an alt-text input per image (rows) with a vertical up/down move
-            strip; edit mode is a compact grid with a horizontal left/right move
-            bar under each thumbnail. */}
+            primary (drives the card, cart thumbnail, and Stripe). Each image is a
+            row: thumbnail, a vertical up/down move strip, then an alt-text input.
+            Identical layout in create and edit mode. */}
         {images.length > 0 && (
-          <div className={product ? 'flex flex-wrap gap-3' : 'space-y-2'}>
+          <div className="space-y-2">
             {images.map((img, i) => {
               const thumb = (
                 <div className="group/img relative shrink-0">
@@ -318,11 +317,7 @@ export default function AdminProductForm({
                   aria-label={`Move image ${i + 1} earlier`}
                   className="flex h-6 w-6 items-center justify-center rounded-md border border-input bg-background text-foreground disabled:cursor-not-allowed disabled:opacity-30"
                 >
-                  {product ? (
-                    <ChevronLeft className="h-4 w-4" />
-                  ) : (
-                    <ChevronUp className="h-4 w-4" />
-                  )}
+                  <ChevronUp className="h-4 w-4" />
                 </button>
               );
 
@@ -334,30 +329,12 @@ export default function AdminProductForm({
                   aria-label={`Move image ${i + 1} later`}
                   className="flex h-6 w-6 items-center justify-center rounded-md border border-input bg-background text-foreground disabled:cursor-not-allowed disabled:opacity-30"
                 >
-                  {product ? (
-                    <ChevronRight className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
+                  <ChevronDown className="h-4 w-4" />
                 </button>
               );
 
-              // Edit mode: compact grid cell — thumbnail with a horizontal move
-              // bar beneath it.
-              if (product) {
-                return (
-                  <div key={i} className="space-y-1">
-                    {thumb}
-                    <div className="flex justify-center gap-1">
-                      {moveEarlier}
-                      {moveLater}
-                    </div>
-                  </div>
-                );
-              }
-
-              // Create mode: row — thumbnail, a vertical move strip, then the
-              // alt-text input.
+              // One row per image (create and edit alike): thumbnail, a vertical
+              // move strip, then the alt-text input.
               return (
                 <div key={i} className="flex items-start gap-3">
                   {thumb}
