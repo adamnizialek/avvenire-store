@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, X, Plus } from 'lucide-react';
+import { Upload, X, Plus, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -101,6 +101,20 @@ export default function AdminProductForm({
 
   const removeImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Reorder photos by swapping a photo with its neighbour. The first photo is the
+  // product's primary image (drives the product card, cart thumbnail, and Stripe),
+  // so moving a photo to the front is how the admin sets the primary. dir is -1
+  // (earlier / toward primary) or +1 (later). No wraparound at the ends.
+  const moveImage = (index: number, dir: -1 | 1) => {
+    setImages((prev) => {
+      const target = index + dir;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
   };
 
   const updateAlt = (index: number, alt: string) => {
@@ -265,18 +279,26 @@ export default function AdminProductForm({
           className="hidden"
         />
 
-        {/* Image previews. Create mode shows an alt-text input per image (rows);
-            edit mode just shows the compact thumbnail grid. */}
+        {/* Image previews + reorder controls. The first image is the product's
+            primary (drives the card, cart thumbnail, and Stripe). Create mode
+            shows an alt-text input per image (rows) with a vertical up/down move
+            strip; edit mode is a compact grid with a horizontal left/right move
+            bar under each thumbnail. */}
         {images.length > 0 && (
-          <div className={product ? 'flex flex-wrap gap-2' : 'space-y-2'}>
-            {images.map((img, i) => (
-              <div key={i} className="flex items-start gap-3">
+          <div className={product ? 'flex flex-wrap gap-3' : 'space-y-2'}>
+            {images.map((img, i) => {
+              const thumb = (
                 <div className="group/img relative shrink-0">
                   <img
                     src={resolveUrl(img.url)}
                     alt={img.alt || `Image ${i + 1}`}
                     className="h-24 w-24 rounded-md object-cover"
                   />
+                  {i === 0 && (
+                    <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium leading-none text-white">
+                      Primary
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => removeImage(i)}
@@ -286,7 +308,63 @@ export default function AdminProductForm({
                     <X className="h-3 w-3" />
                   </button>
                 </div>
-                {!product && (
+              );
+
+              const moveEarlier = (
+                <button
+                  type="button"
+                  onClick={() => moveImage(i, -1)}
+                  disabled={i === 0}
+                  aria-label={`Move image ${i + 1} earlier`}
+                  className="flex h-6 w-6 items-center justify-center rounded-md border border-input bg-background text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  {product ? (
+                    <ChevronLeft className="h-4 w-4" />
+                  ) : (
+                    <ChevronUp className="h-4 w-4" />
+                  )}
+                </button>
+              );
+
+              const moveLater = (
+                <button
+                  type="button"
+                  onClick={() => moveImage(i, 1)}
+                  disabled={i === images.length - 1}
+                  aria-label={`Move image ${i + 1} later`}
+                  className="flex h-6 w-6 items-center justify-center rounded-md border border-input bg-background text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  {product ? (
+                    <ChevronRight className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </button>
+              );
+
+              // Edit mode: compact grid cell — thumbnail with a horizontal move
+              // bar beneath it.
+              if (product) {
+                return (
+                  <div key={i} className="space-y-1">
+                    {thumb}
+                    <div className="flex justify-center gap-1">
+                      {moveEarlier}
+                      {moveLater}
+                    </div>
+                  </div>
+                );
+              }
+
+              // Create mode: row — thumbnail, a vertical move strip, then the
+              // alt-text input.
+              return (
+                <div key={i} className="flex items-start gap-3">
+                  {thumb}
+                  <div className="flex flex-col gap-1">
+                    {moveEarlier}
+                    {moveLater}
+                  </div>
                   <div className="flex-1 space-y-1">
                     <Label
                       htmlFor={`alt-${i}`}
@@ -302,9 +380,9 @@ export default function AdminProductForm({
                       maxLength={250}
                     />
                   </div>
-                )}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         )}
 
