@@ -35,9 +35,12 @@ export class ProductImageDto {
 }
 
 // Coerce each element to a ProductImageDto instance ourselves (a legacy bare
-// string becomes { url }). Doing the instantiation inside @Transform makes the
-// result independent of class-transformer's @Type ordering, and @ValidateNested
-// then validates the real instances.
+// string becomes { url }), then @ValidateNested validates the real instances.
+// This must be paired with @Type(() => ProductImageDto) on the property: the
+// global pipe runs with transformOptions.enableImplicitConversion, which mangles
+// nested-object array elements that have no declared @Type into `[]`, silently
+// wiping every image. @Type tells class-transformer the element type so implicit
+// conversion leaves the objects (and this transform's output) intact.
 export const toProductImageDtos = ({ value }: { value: unknown }) =>
   Array.isArray(value)
     ? value.map((item) =>
@@ -74,6 +77,7 @@ export class CreateProductDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
+  @Type(() => ProductImageDto)
   @Transform(toProductImageDtos)
   images?: ProductImageDto[];
 
