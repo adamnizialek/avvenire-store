@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { OrdersService } from '../orders/orders.service';
+import { imageUrls } from '../products/product-image';
 
 @Injectable()
 export class StripeService {
@@ -47,8 +48,8 @@ export class StripeService {
           product_data: {
             name: item.product.name,
             description: item.product.description,
-            ...(item.product.images?.length
-              ? { images: item.product.images }
+            ...(imageUrls(item.product.images).length
+              ? { images: imageUrls(item.product.images) }
               : {}),
           },
         },

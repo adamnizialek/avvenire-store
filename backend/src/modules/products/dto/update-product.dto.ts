@@ -6,8 +6,12 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-import { InventoryItemDto } from './create-product.dto';
+import { Transform, Type } from 'class-transformer';
+import {
+  InventoryItemDto,
+  ProductImageDto,
+  toProductImageDtos,
+} from './create-product.dto';
 
 export class UpdateProductDto {
   @IsOptional()
@@ -35,8 +39,9 @@ export class UpdateProductDto {
 
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
-  images?: string[];
+  @ValidateNested({ each: true })
+  @Transform(toProductImageDtos)
+  images?: ProductImageDto[];
 
   @IsOptional()
   @IsString()

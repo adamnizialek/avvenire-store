@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { OrderItem } from '../../orders/entities/order-item.entity';
 import { decimalTransformer } from '../../../common/decimal.transformer';
+import { ProductImage } from '../product-image';
 
 @Entity('products')
 export class Product {
@@ -35,7 +36,7 @@ export class Product {
   inventory: { size: string; quantity: number }[];
 
   @Column('simple-json', { default: '[]' })
-  images: string[];
+  images: ProductImage[];
 
   @Column({ nullable: true })
   stripePriceId: string;
