@@ -112,7 +112,7 @@ export default function ProductDetail() {
   };
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl">
       <div className="px-4 py-2">
         <Button variant="ghost" className="mb-0" asChild>
           <Link to="/products">
@@ -131,12 +131,12 @@ export default function ProductDetail() {
                   src={resolveImageUrl(img.url)}
                   alt={img.alt || `${product.name} ${i + 1}`}
                   loading="lazy"
-                  className="aspect-[3/4] w-full object-cover"
+                  className="aspect-[3/4] max-h-[75vh] w-full object-cover"
                 />
               </div>
             ))
           ) : (
-            <div className="col-span-2 flex aspect-[3/4] items-center justify-center bg-neutral-100">
+            <div className="col-span-2 flex aspect-[3/4] max-h-[75vh] items-center justify-center bg-neutral-100">
               <span className="text-muted-foreground">No image</span>
             </div>
           )}
