@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import api from '@/lib/axios';
 import { resolveImageUrl } from '@/lib/image';
 import { getErrorMessage } from '@/lib/errors';
-import type { Product } from '@/types';
+import type { Product, ProductImage } from '@/types';
 
 const SIZE_PRESETS: Record<string, string[]> = {
   clothing: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
@@ -26,7 +26,7 @@ export default function AdminProductForm({
   const [name, setName] = useState(product?.name || '');
   const [description, setDescription] = useState(product?.description || '');
   const [price, setPrice] = useState(product ? String(product.price) : '');
-  const [images, setImages] = useState<string[]>(product?.images || []);
+  const [images, setImages] = useState<ProductImage[]>(product?.images || []);
   const [manualUrl, setManualUrl] = useState('');
   const [stripePriceId, setStripePriceId] = useState(
     product?.stripePriceId || '',
@@ -85,7 +85,7 @@ export default function AdminProductForm({
           formData,
           { headers: { 'Content-Type': undefined } },
         );
-        setImages((prev) => [...prev, res.data.url]);
+        setImages((prev) => [...prev, { url: res.data.url, alt: '' }]);
       } catch (err) {
         failures.push(`${file.name}: ${getErrorMessage(err, 'upload failed')}`);
       }
@@ -102,6 +102,12 @@ export default function AdminProductForm({
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const updateAlt = (index: number, alt: string) => {
+    setImages((prev) =>
+      prev.map((img, i) => (i === index ? { ...img, alt } : img)),
+    );
+  };
+
   const addManualUrl = () => {
     const url = manualUrl.trim();
     if (!url) return;
@@ -109,7 +115,7 @@ export default function AdminProductForm({
       setError('Please enter a valid image URL (including https://).');
       return;
     }
-    setImages((prev) => [...prev, url]);
+    setImages((prev) => [...prev, { url, alt: '' }]);
     setManualUrl('');
   };
 
@@ -255,21 +261,40 @@ export default function AdminProductForm({
 
         {/* Image previews */}
         {images.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {images.map((url, i) => (
-              <div key={i} className="group/img relative">
-                <img
-                  src={resolveUrl(url)}
-                  alt={`Image ${i + 1}`}
-                  className="h-24 w-24 rounded-md object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeImage(i)}
-                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white shadow-sm"
-                >
-                  <X className="h-3 w-3" />
-                </button>
+          <div className="space-y-2">
+            {images.map((img, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <div className="group/img relative shrink-0">
+                  <img
+                    src={resolveUrl(img.url)}
+                    alt={img.alt || `Image ${i + 1}`}
+                    className="h-24 w-24 rounded-md object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white shadow-sm"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+                {!product && (
+                  <div className="flex-1 space-y-1">
+                    <Label
+                      htmlFor={`alt-${i}`}
+                      className="text-xs text-muted-foreground"
+                    >
+                      Alt text (optional)
+                    </Label>
+                    <Input
+                      id={`alt-${i}`}
+                      value={img.alt ?? ''}
+                      onChange={(e) => updateAlt(i, e.target.value)}
+                      placeholder="Describe this photo for screen readers"
+                      maxLength={250}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>

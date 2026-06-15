@@ -115,7 +115,7 @@ export default function AdminProducts() {
                   <TableCell>
                     {product.images?.[0] ? (
                       <img
-                        src={resolveImageUrl(product.images[0])}
+                        src={resolveImageUrl(product.images[0].url)}
                         alt={product.name}
                         className="h-10 w-10 rounded object-cover"
                       />

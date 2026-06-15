@@ -10,15 +10,15 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const currency = useCurrencyStore((state) => state.currency);
-  const hasSecondImage = product.images?.length >= 2;
+  const hasSecondImage = (product.images?.length ?? 0) >= 2;
 
   return (
     <Link to={`/products/${product.id}`} className="group">
       {product.images?.[0] ? (
         <div className="relative aspect-[3/4] overflow-hidden bg-neutral-200">
           <img
-            src={resolveImageUrl(product.images[0], 600)}
-            alt={product.name}
+            src={resolveImageUrl(product.images[0].url, 600)}
+            alt={product.images[0].alt || product.name}
             loading="lazy"
             decoding="async"
             className={`h-full w-full object-cover transition-opacity duration-500 ${
@@ -27,8 +27,8 @@ export default function ProductCard({ product }: ProductCardProps) {
           />
           {hasSecondImage && (
             <img
-              src={resolveImageUrl(product.images[1], 600)}
-              alt={product.name}
+              src={resolveImageUrl(product.images[1].url, 600)}
+              alt={product.images[1].alt || product.name}
               loading="lazy"
               decoding="async"
               className="absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-500 group-hover:opacity-100"
