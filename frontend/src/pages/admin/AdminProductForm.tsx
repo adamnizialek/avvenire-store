@@ -213,7 +213,9 @@ export default function AdminProductForm({
         />
         <p className="text-xs text-muted-foreground">
           Supports Markdown — use <code>## Heading</code>, <code>**bold**</code>,
-          and <code>- bullet lists</code> to structure longer descriptions.
+          and <code>- bullet lists</code> to structure longer descriptions. A
+          single Enter is a line break; leave a blank line between paragraphs for
+          extra spacing.
         </p>
       </div>
 
