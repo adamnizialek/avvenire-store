@@ -9,6 +9,7 @@ import { formatPrice } from '@/lib/currency';
 import ProductCard from '@/components/features/ProductCard';
 import api from '@/lib/axios';
 import { resolveImageUrl } from '@/lib/image';
+import { Markdown } from '@/components/ui/markdown';
 import { toast } from 'sonner';
 import type { Product } from '@/types';
 
@@ -141,14 +142,16 @@ export default function ProductDetail() {
           )}
         </div>
 
-        {/* Product info - right side, sticky */}
-        <div className="p-4 pt-6 md:self-start md:sticky md:top-0 md:p-8 md:pt-12">
+        {/* Product info - right side, sticky. Cap the pinned panel to the
+            viewport and let it scroll internally so a long Markdown description
+            can never push the size selector / Add to Cart below the fold. */}
+        <div className="p-4 pt-6 md:self-start md:sticky md:top-0 md:max-h-[calc(100vh-2rem)] md:overflow-y-auto md:p-8 md:pt-12">
           <h1 className="text-2xl font-bold">{product.name}</h1>
           <p className="mt-3 text-xl font-bold">
             {formatPrice(Number(product.price), currency)}
           </p>
           <Separator className="my-5" />
-          <p className="text-sm text-muted-foreground">{product.description}</p>
+          <Markdown>{product.description}</Markdown>
 
           {hasSizes && (
             <div className="mt-6">
