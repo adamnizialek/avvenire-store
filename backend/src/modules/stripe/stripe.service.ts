@@ -41,20 +41,21 @@ export class StripeService {
     }
 
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] =
-      order.items.map((item) => ({
-        price_data: {
-          currency: 'usd',
-          unit_amount: Math.round(Number(item.price) * 100),
-          product_data: {
-            name: item.product.name,
-            description: item.product.description,
-            ...(imageUrls(item.product.images).length
-              ? { images: imageUrls(item.product.images) }
-              : {}),
+      order.items.map((item) => {
+        const images = imageUrls(item.product.images);
+        return {
+          price_data: {
+            currency: 'usd',
+            unit_amount: Math.round(Number(item.price) * 100),
+            product_data: {
+              name: item.product.name,
+              description: item.product.description,
+              ...(images.length ? { images } : {}),
+            },
           },
-        },
-        quantity: item.quantity,
-      }));
+          quantity: item.quantity,
+        };
+      });
 
     const session = await this.stripe.checkout.sessions.create({
       line_items: lineItems,

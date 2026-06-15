@@ -66,4 +66,27 @@ describe('ProductsService image normalization', () => {
     expect(repo.save).toHaveBeenCalled();
     expect(saved.images).toEqual([{ url: 'http://x/a.jpg', alt: 'A' }]);
   });
+
+  it('keeps and normalizes existing images when update omits images', async () => {
+    repo.findOne.mockResolvedValue({ id: 'p1', images: ['http://x/a.jpg'] });
+    const updated = await service.update('p1', { name: 'New name' } as never);
+    expect(updated.images).toEqual([{ url: 'http://x/a.jpg', alt: '' }]);
+  });
+
+  it('does not clobber images when update passes images: null', async () => {
+    repo.findOne.mockResolvedValue({
+      id: 'p1',
+      images: [{ url: 'http://x/a.jpg', alt: 'A' }],
+    });
+    const updated = await service.update('p1', { images: null } as never);
+    expect(updated.images).toEqual([{ url: 'http://x/a.jpg', alt: 'A' }]);
+  });
+
+  it('replaces images when update provides new ones', async () => {
+    repo.findOne.mockResolvedValue({ id: 'p1', images: ['http://old/a.jpg'] });
+    const updated = await service.update('p1', {
+      images: [{ url: 'http://new/b.jpg', alt: 'B' }],
+    } as never);
+    expect(updated.images).toEqual([{ url: 'http://new/b.jpg', alt: 'B' }]);
+  });
 });
