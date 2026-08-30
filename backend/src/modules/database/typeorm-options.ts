@@ -6,6 +6,7 @@ import { User } from '../users/entities/user.entity';
 import { Product } from '../products/entities/product.entity';
 import { Order } from '../orders/entities/order.entity';
 import { OrderItem } from '../orders/entities/order-item.entity';
+import { ProcessedStripeEvent } from '../stripe/entities/processed-stripe-event.entity';
 
 export type AppTypeOrmOptions = TypeOrmModuleOptions &
   PostgresConnectionOptions;
@@ -37,7 +38,7 @@ export function buildTypeOrmOptions(config: ConfigService): AppTypeOrmOptions {
     password: config.get<string>('DB_PASSWORD', 'postgres'),
     database: config.get<string>('DB_NAME', 'shop'),
     ssl: useSsl ? { rejectUnauthorized } : false,
-    entities: [User, Product, Order, OrderItem],
+    entities: [User, Product, Order, OrderItem, ProcessedStripeEvent],
     migrations: [join(__dirname, '../../migrations/*{.ts,.js}')],
     migrationsRun,
     synchronize,

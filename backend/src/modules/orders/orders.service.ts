@@ -95,41 +95,51 @@ export class OrdersService {
   /**
    * Marks a pending order paid. Idempotent: replays and orders that are no
    * longer pending (already completed/cancelled) are left untouched.
+   * Pass a manager to join an enclosing transaction (e.g. webhook dedup).
    */
-  async markPaid(id: string): Promise<void> {
-    await this.ordersRepository.update(
-      { id, status: 'pending' },
-      { status: 'completed' },
-    );
+  async markPaid(id: string, manager?: EntityManager): Promise<void> {
+    const repository = manager
+      ? manager.getRepository(Order)
+      : this.ordersRepository;
+    await repository.update({ id, status: 'pending' }, { status: 'completed' });
   }
 
   /**
    * Cancels a still-pending order and returns its reserved stock. Idempotent
    * and safe to call from expired/failed-payment webhooks.
+   * Pass a manager to join an enclosing transaction (e.g. webhook dedup).
    */
-  async cancelAndRestock(id: string): Promise<void> {
-    await this.dataSource.transaction(async (manager) => {
-      const order = await manager.findOne(Order, {
-        where: { id },
-        relations: ['items'],
-      });
-      if (!order || order.status !== 'pending') {
-        return;
-      }
-      for (const item of order.items) {
-        if (!item.size) continue;
-        const product = await this.lockProduct(manager, item.productId);
-        const inventory = product.inventory ?? [];
-        const entry = inventory.find((inv) => inv.size === item.size);
-        if (entry) {
-          entry.quantity += item.quantity;
-          product.inventory = inventory;
-          await manager.save(product);
-        }
-      }
-      order.status = 'cancelled';
-      await manager.save(order);
+  async cancelAndRestock(id: string, manager?: EntityManager): Promise<void> {
+    if (manager) {
+      return this.cancelAndRestockIn(manager, id);
+    }
+    await this.dataSource.transaction((m) => this.cancelAndRestockIn(m, id));
+  }
+
+  private async cancelAndRestockIn(
+    manager: EntityManager,
+    id: string,
+  ): Promise<void> {
+    const order = await manager.findOne(Order, {
+      where: { id },
+      relations: ['items'],
     });
+    if (!order || order.status !== 'pending') {
+      return;
+    }
+    for (const item of order.items) {
+      if (!item.size) continue;
+      const product = await this.lockProduct(manager, item.productId);
+      const inventory = product.inventory ?? [];
+      const entry = inventory.find((inv) => inv.size === item.size);
+      if (entry) {
+        entry.quantity += item.quantity;
+        product.inventory = inventory;
+        await manager.save(product);
+      }
+    }
+    order.status = 'cancelled';
+    await manager.save(order);
   }
 
   async findByUserId(userId: string): Promise<Order[]> {

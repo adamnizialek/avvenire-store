@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
+import { DataSource, EntityManager } from 'typeorm';
 import { OrdersService } from '../orders/orders.service';
 import { imageUrls } from '../products/product-image';
 
@@ -12,6 +13,7 @@ export class StripeService {
   constructor(
     private configService: ConfigService,
     private ordersService: OrdersService,
+    private dataSource: DataSource,
   ) {
     this.stripe = new Stripe(
       this.configService.get<string>('STRIPE_SECRET_KEY')!,
@@ -118,32 +120,61 @@ export class StripeService {
     const session = event.data.object as Stripe.Checkout.Session;
     const orderId = session.metadata?.orderId;
 
-    switch (event.type) {
-      case 'checkout.session.completed':
-        // For async methods (e.g. P24/bank transfer) the session can complete
-        // while still unpaid — only fulfil once payment is actually captured.
-        if (orderId && session.payment_status === 'paid') {
-          await this.ordersService.markPaid(orderId);
-        }
-        break;
+    // Event-level idempotency: record event.id and apply the state change in
+    // ONE transaction. A duplicate/replayed delivery (or one that raced a
+    // concurrent copy) is skipped; if processing fails, the rollback also
+    // forgets the event so Stripe's retry gets a clean attempt. The
+    // order-status guards in OrdersService stay as defense-in-depth.
+    await this.dataSource.transaction(async (manager) => {
+      const firstSight = await this.recordEvent(manager, event);
+      if (!firstSight) {
+        this.logger.log(
+          `Skipping already-processed event ${event.id} (${event.type})`,
+        );
+        return;
+      }
 
-      case 'checkout.session.async_payment_succeeded':
-        if (orderId) {
-          await this.ordersService.markPaid(orderId);
-        }
-        break;
+      switch (event.type) {
+        case 'checkout.session.completed':
+          // For async methods (e.g. P24/bank transfer) the session can
+          // complete while still unpaid — only fulfil once payment is
+          // actually captured.
+          if (orderId && session.payment_status === 'paid') {
+            await this.ordersService.markPaid(orderId, manager);
+          }
+          break;
 
-      case 'checkout.session.async_payment_failed':
-      case 'checkout.session.expired':
-        if (orderId) {
-          await this.ordersService.cancelAndRestock(orderId);
-        }
-        break;
+        case 'checkout.session.async_payment_succeeded':
+          if (orderId) {
+            await this.ordersService.markPaid(orderId, manager);
+          }
+          break;
 
-      default:
-        break;
-    }
+        case 'checkout.session.async_payment_failed':
+        case 'checkout.session.expired':
+          if (orderId) {
+            await this.ordersService.cancelAndRestock(orderId, manager);
+          }
+          break;
+
+        default:
+          break;
+      }
+    });
 
     return { received: true };
+  }
+
+  /** Returns true when this delivery is the first sight of the event. */
+  private async recordEvent(
+    manager: EntityManager,
+    event: Stripe.Event,
+  ): Promise<boolean> {
+    const inserted: { id: string }[] = await manager.query(
+      `INSERT INTO processed_stripe_events ("id", "type") VALUES ($1, $2)
+       ON CONFLICT ("id") DO NOTHING RETURNING "id"`,
+      [event.id, event.type],
+    );
+    return inserted.length > 0;
   }
 }
