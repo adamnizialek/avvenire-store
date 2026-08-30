@@ -16,8 +16,8 @@ describe('ProductsService image normalization', () => {
     repo = {
       find: jest.fn(),
       findOne: jest.fn(),
-      create: jest.fn((entity) => entity),
-      save: jest.fn(async (p) => p),
+      create: jest.fn((entity: unknown) => entity),
+      save: jest.fn((p: unknown) => Promise.resolve(p)),
     };
     const moduleRef = await Test.createTestingModule({
       providers: [

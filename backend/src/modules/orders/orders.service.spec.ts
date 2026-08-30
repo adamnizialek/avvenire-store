@@ -4,14 +4,13 @@ import { DataSource } from 'typeorm';
 import { BadRequestException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { Order } from './entities/order.entity';
-import { Product } from '../products/entities/product.entity';
 
 type AnyObj = Record<string, any>;
 
 function makeManager(findOne: jest.Mock) {
   return {
     findOne,
-    save: jest.fn(async (x: AnyObj) => x),
+    save: jest.fn((x: AnyObj) => Promise.resolve(x)),
     create: jest.fn((_entity: unknown, obj: AnyObj) => obj),
   };
 }
@@ -22,7 +21,7 @@ describe('OrdersService', () => {
   let dataSource: { transaction: jest.Mock };
 
   beforeEach(async () => {
-    ordersRepository = { update: jest.fn(async () => ({ affected: 1 })) };
+    ordersRepository = { update: jest.fn().mockResolvedValue({ affected: 1 }) };
     dataSource = { transaction: jest.fn() };
 
     const moduleRef = await Test.createTestingModule({
@@ -44,8 +43,10 @@ describe('OrdersService', () => {
         price: 19.99,
         inventory: [{ size: 'M', quantity: 5 }],
       };
-      const manager = makeManager(jest.fn(async () => product));
-      dataSource.transaction.mockImplementation((cb: any) => cb(manager));
+      const manager = makeManager(jest.fn(() => Promise.resolve(product)));
+      dataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) =>
+        cb(manager),
+      );
 
       const order = await service.create('user-1', {
         items: [{ productId: 'p1', quantity: 3, size: 'M' }],
@@ -64,8 +65,10 @@ describe('OrdersService', () => {
         price: 10,
         inventory: [{ size: 'M', quantity: 5 }],
       };
-      const manager = makeManager(jest.fn(async () => product));
-      dataSource.transaction.mockImplementation((cb: any) => cb(manager));
+      const manager = makeManager(jest.fn(() => Promise.resolve(product)));
+      dataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) =>
+        cb(manager),
+      );
 
       await expect(
         service.create('user-1', {
@@ -81,8 +84,10 @@ describe('OrdersService', () => {
         price: 10,
         inventory: [{ size: 'M', quantity: 2 }],
       };
-      const manager = makeManager(jest.fn(async () => product));
-      dataSource.transaction.mockImplementation((cb: any) => cb(manager));
+      const manager = makeManager(jest.fn(() => Promise.resolve(product)));
+      dataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) =>
+        cb(manager),
+      );
 
       await expect(
         service.create('user-1', {
@@ -102,8 +107,10 @@ describe('OrdersService', () => {
         ],
       };
       // The lock re-reads the SAME (mutated) product instance within the tx.
-      const manager = makeManager(jest.fn(async () => product));
-      dataSource.transaction.mockImplementation((cb: any) => cb(manager));
+      const manager = makeManager(jest.fn(() => Promise.resolve(product)));
+      dataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) =>
+        cb(manager),
+      );
 
       const order = await service.create('user-1', {
         items: [
@@ -139,11 +146,13 @@ describe('OrdersService', () => {
         status: 'pending',
         items: [{ productId: 'p1', quantity: 3, size: 'M' }],
       };
-      const findOne = jest.fn(async (entity: unknown) =>
-        entity === Order ? order : product,
+      const findOne = jest.fn((entity: unknown) =>
+        Promise.resolve(entity === Order ? order : product),
       );
       const manager = makeManager(findOne);
-      dataSource.transaction.mockImplementation((cb: any) => cb(manager));
+      dataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) =>
+        cb(manager),
+      );
 
       await service.cancelAndRestock('order-1');
 
@@ -153,9 +162,11 @@ describe('OrdersService', () => {
 
     it('does nothing for an order that is not pending', async () => {
       const order = { id: 'order-1', status: 'completed', items: [] };
-      const findOne = jest.fn(async () => order);
+      const findOne = jest.fn(() => Promise.resolve(order));
       const manager = makeManager(findOne);
-      dataSource.transaction.mockImplementation((cb: any) => cb(manager));
+      dataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) =>
+        cb(manager),
+      );
 
       await service.cancelAndRestock('order-1');
 

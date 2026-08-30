@@ -6,6 +6,7 @@ import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Public } from './decorators/public.decorator';
+import type { AuthenticatedRequest } from './authenticated-request';
 
 // Strict limit for credential/email endpoints (brute force + email bombing).
 const AUTH_THROTTLE = { default: { limit: 5, ttl: 60_000 } };
@@ -29,7 +30,7 @@ export class AuthController {
   }
 
   @Get('profile')
-  getProfile(@Request() req: any) {
+  getProfile(@Request() req: AuthenticatedRequest) {
     return this.authService.getProfile(req.user.userId);
   }
 

@@ -31,7 +31,11 @@ describe('product-image helpers', () => {
 
   it('drops entries without a usable url and trims whitespace', () => {
     expect(
-      normalizeImages(['   ', { alt: 'no url' }, { url: '  http://x/c.jpg  ' }]),
+      normalizeImages([
+        '   ',
+        { alt: 'no url' },
+        { url: '  http://x/c.jpg  ' },
+      ]),
     ).toEqual([{ url: 'http://x/c.jpg', alt: '' }]);
   });
 

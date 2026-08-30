@@ -22,7 +22,11 @@ export class CloudinaryService {
         .upload_stream(
           { folder: 'avvenire', resource_type: 'image' },
           (error, result) => {
-            if (error || !result) return reject(error);
+            if (error || !result) {
+              return reject(
+                new Error(error?.message ?? 'Cloudinary returned no result'),
+              );
+            }
             resolve(result);
           },
         )

@@ -7,9 +7,12 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import type { RawBodyRequest } from '@nestjs/common';
+import type { Request as ExpressRequest } from 'express';
 import { SkipThrottle } from '@nestjs/throttler';
 import { StripeService } from './stripe.service';
 import { Public } from '../auth/decorators/public.decorator';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('stripe')
 export class StripeController {
@@ -18,7 +21,10 @@ export class StripeController {
   constructor(private stripeService: StripeService) {}
 
   @Post('create-checkout-session')
-  createCheckoutSession(@Body('orderId') orderId: string, @Request() req: any) {
+  createCheckoutSession(
+    @Body('orderId') orderId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.stripeService.createCheckoutSession(orderId, req.user.userId);
   }
 
@@ -26,11 +32,14 @@ export class StripeController {
   @SkipThrottle()
   @Post('webhook')
   async handleWebhook(
-    @Request() req: any,
+    @Request() req: RawBodyRequest<ExpressRequest>,
     @Headers('stripe-signature') signature: string,
   ) {
     if (!signature) {
       throw new BadRequestException('Missing stripe-signature header');
+    }
+    if (!req.rawBody) {
+      throw new BadRequestException('Missing request body');
     }
 
     try {

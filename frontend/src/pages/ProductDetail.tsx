@@ -24,16 +24,24 @@ export default function ProductDetail() {
   const addItem = useCartStore((state) => state.addItem);
   const currency = useCurrencyStore((state) => state.currency);
 
-  useEffect(() => {
-    window.scrollTo(0, 0);
+  // Reset per-product state during render when the route id changes (the
+  // React "adjusting state when props change" pattern) rather than inside
+  // the effect, which would trigger a cascading re-render.
+  const [prevId, setPrevId] = useState(id);
+  if (prevId !== id) {
+    setPrevId(id);
     setSelectedSize(null);
     setSizeError(false);
     setStockError(false);
+    setProduct(null);
+    setLoading(true);
+  }
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
     if (!id) return;
 
     let cancelled = false;
-    setLoading(true);
-    setProduct(null);
     api
       .get<Product>(`/products/${id}`)
       .then((res) => {
