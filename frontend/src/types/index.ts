@@ -58,6 +58,5 @@ export interface CartItem {
 }
 
 export interface AuthResponse {
-  access_token: string;
   user: User;
 }

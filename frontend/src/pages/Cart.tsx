@@ -10,7 +10,7 @@ import { formatPrice } from '@/lib/currency';
 
 export default function Cart() {
   const { items, removeItem, updateQuantity, getTotalPrice } = useCartStore();
-  const { token } = useAuthStore();
+  const { user } = useAuthStore();
   const currency = useCurrencyStore((state) => state.currency);
 
   if (items.length === 0) {
@@ -120,8 +120,8 @@ export default function Cart() {
             <span>{formatPrice(getTotalPrice(), currency)}</span>
           </div>
           <Button className="mt-6 w-full" size="lg" asChild>
-            <Link to={token ? '/checkout' : '/login'}>
-              {token ? 'Proceed to Checkout' : 'Login to Checkout'}
+            <Link to={user ? '/checkout' : '/login'}>
+              {user ? 'Proceed to Checkout' : 'Login to Checkout'}
             </Link>
           </Button>
         </div>

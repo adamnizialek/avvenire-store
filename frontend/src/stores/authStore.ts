@@ -4,17 +4,19 @@ import { useCartStore } from '@/stores/cartStore';
 import type { User, AuthResponse } from '@/types';
 
 interface AuthState {
-  token: string | null;
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   initializeAuth: () => void;
 }
 
+// The JWT lives in an httpOnly cookie managed entirely by the backend — the
+// store never sees it. Only the (non-secret) profile is cached for fast
+// hydration on reload.
+
 export const useAuthStore = create<AuthState>((set) => ({
-  token: null,
   user: null,
   isLoading: true,
 
@@ -23,10 +25,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       email,
       password,
     });
-    const { access_token, user } = response.data;
-    localStorage.setItem('auth_token', access_token);
+    const { user } = response.data;
     localStorage.setItem('auth_user', JSON.stringify(user));
-    set({ token: access_token, user });
+    set({ user });
   },
 
   register: async (email: string, password: string) => {
@@ -34,30 +35,31 @@ export const useAuthStore = create<AuthState>((set) => ({
       email,
       password,
     });
-    const { access_token, user } = response.data;
-    localStorage.setItem('auth_token', access_token);
+    const { user } = response.data;
     localStorage.setItem('auth_user', JSON.stringify(user));
-    set({ token: access_token, user });
+    set({ user });
   },
 
-  logout: () => {
-    localStorage.removeItem('auth_token');
+  logout: async () => {
+    // Ask the backend to clear the httpOnly cookie; local state is cleared
+    // regardless so the UI logs out even if the request fails offline.
+    await api.post('/auth/logout').catch(() => {});
     localStorage.removeItem('auth_user');
     // Don't leave the previous user's cart for the next person on a shared device.
     useCartStore.getState().clearCart();
-    set({ token: null, user: null });
+    set({ user: null });
   },
 
   initializeAuth: () => {
-    const token = localStorage.getItem('auth_token');
     const userStr = localStorage.getItem('auth_user');
-    if (token && userStr) {
+    if (userStr) {
       try {
-        const user = JSON.parse(userStr);
+        const user = JSON.parse(userStr) as User;
         // Hydrate immediately for fast first paint...
-        set({ token, user, isLoading: false });
-        // ...then confirm the token is still valid and refresh the role from the
-        // server (a 401 is handled by the axios interceptor, which logs out).
+        set({ user, isLoading: false });
+        // ...then confirm the cookie session is still valid and refresh the
+        // role from the server (a 401 is handled by the axios interceptor,
+        // which logs out).
         api
           .get<User>('/auth/profile')
           .then((res) => {

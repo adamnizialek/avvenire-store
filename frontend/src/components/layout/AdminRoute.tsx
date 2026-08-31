@@ -2,7 +2,7 @@ import { Navigate, Outlet } from 'react-router';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function AdminRoute() {
-  const { token, user, isLoading } = useAuthStore();
+  const { user, isLoading } = useAuthStore();
 
   if (isLoading) {
     return (
@@ -12,7 +12,7 @@ export default function AdminRoute() {
     );
   }
 
-  if (!token || user?.role !== 'admin') {
+  if (user?.role !== 'admin') {
     return <Navigate to="/" replace />;
   }
 

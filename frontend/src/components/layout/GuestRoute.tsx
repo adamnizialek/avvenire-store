@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/authStore';
  * they can't silently create or switch into a second account while signed in.
  */
 export default function GuestRoute() {
-  const { token, isLoading } = useAuthStore();
+  const { user, isLoading } = useAuthStore();
 
   if (isLoading) {
     return (
@@ -16,7 +16,7 @@ export default function GuestRoute() {
     );
   }
 
-  if (token) {
+  if (user) {
     return <Navigate to="/" replace />;
   }
 
