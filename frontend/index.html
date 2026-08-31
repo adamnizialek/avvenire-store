@@ -3,12 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AVVENIRE — Premium Fashion Store</title>
-    <meta name="description" content="Discover premium clothing, shoes, and accessories at AVVENIRE. Curated luxury fashion with worldwide shipping." />
     <meta name="theme-color" content="#0a0a0a" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-    <!-- Open Graph -->
+    <!-- Site-default SEO. The prerender function (api/product-meta) swaps
+         everything between these markers for per-product tags on /products/:id
+         so crawlers/unfurlers see real metadata. Keep the markers intact. -->
+    <!--SEO--><title>AVVENIRE — Premium Fashion Store</title>
+    <meta name="description" content="Discover premium clothing, shoes, and accessories at AVVENIRE. Curated luxury fashion with worldwide shipping." />
     <meta property="og:title" content="AVVENIRE — Premium Fashion Store" />
     <meta property="og:description" content="Discover premium clothing, shoes, and accessories at AVVENIRE." />
     <meta property="og:type" content="website" />
@@ -16,12 +18,10 @@
     <meta property="og:image" content="https://avvenire.vercel.app/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-
-    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="AVVENIRE — Premium Fashion Store" />
     <meta name="twitter:description" content="Discover premium clothing, shoes, and accessories at AVVENIRE." />
-    <meta name="twitter:image" content="https://avvenire.vercel.app/og.png" />
+    <meta name="twitter:image" content="https://avvenire.vercel.app/og.png" /><!--/SEO-->
 
     <!-- Performance hints -->
     <link rel="preconnect" href="https://res.cloudinary.com" />

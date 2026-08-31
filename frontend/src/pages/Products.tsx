@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import ProductCard from '@/components/features/ProductCard';
 import api from '@/lib/axios';
 import type { Product } from '@/types';
+import { Seo } from '@/components/Seo';
+import { DEFAULT_ORIGIN } from '@/lib/seo';
 
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -18,6 +20,11 @@ export default function Products() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <Seo
+        title="Shop All Products — AVVENIRE"
+        description="Browse the full AVVENIRE collection — curated premium clothing, shoes, and accessories with worldwide shipping."
+        canonical={`${DEFAULT_ORIGIN}/products`}
+      />
       <h1 className="mb-8 text-3xl font-bold">All Products</h1>
 
       {loading ? (

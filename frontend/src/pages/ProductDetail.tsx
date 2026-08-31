@@ -12,6 +12,8 @@ import { resolveImageUrl } from '@/lib/image';
 import { Markdown } from '@/components/ui/markdown';
 import { toast } from 'sonner';
 import type { Product } from '@/types';
+import { Seo } from '@/components/Seo';
+import { productSeo, productJsonLd } from '@/lib/seo';
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -94,6 +96,8 @@ export default function ProductDetail() {
 
   const hasSizes = product.inventory && product.inventory.length > 0;
   const images = product.images ?? [];
+  const seo = productSeo(product);
+  const jsonLd = productJsonLd(product);
 
   const handleAddToCart = () => {
     if (hasSizes && !selectedSize) {
@@ -121,6 +125,14 @@ export default function ProductDetail() {
 
   return (
     <div>
+      <Seo
+        title={seo.title}
+        description={seo.description}
+        canonical={seo.canonical}
+        image={seo.image}
+        type="product"
+        jsonLd={jsonLd}
+      />
       <div className="px-4 py-2">
         <Button variant="ghost" className="mb-0" asChild>
           <Link to="/products">

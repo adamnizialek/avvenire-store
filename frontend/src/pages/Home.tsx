@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import ProductCard from '@/components/features/ProductCard';
 import api from '@/lib/axios';
 import type { Product } from '@/types';
+import { Seo } from '@/components/Seo';
+import { DEFAULT_ORIGIN } from '@/lib/seo';
 
 export default function Home() {
   const [featured, setFeatured] = useState<Product[]>([]);
@@ -35,6 +37,7 @@ export default function Home() {
 
   return (
     <div>
+      <Seo canonical={`${DEFAULT_ORIGIN}/`} />
       {/* Hero Section with Video — full screen */}
       <section className="relative flex h-screen items-center justify-center overflow-hidden">
         <video

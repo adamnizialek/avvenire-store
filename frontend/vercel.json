@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
+    { "source": "/products/:id", "destination": "/api/product-meta?id=:id" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
