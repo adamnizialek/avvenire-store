@@ -1,16 +1,22 @@
+// Must be the first import so Sentry can instrument everything below it.
+import './instrument';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { makeOriginCheck } from './common/origin-check.middleware';
 
 async function bootstrap() {
-  // Force redeploy to refresh env vars on Render
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
+    // Buffer boot logs until the pino logger is wired in below, then route all
+    // Nest logging (including these) through structured JSON.
+    bufferLogs: true,
   });
+  app.useLogger(app.get(Logger));
 
   // Strict CSP for an API that serves only JSON and uploaded images: nothing
   // may execute or be embedded. The storefront's own CSP lives with its host

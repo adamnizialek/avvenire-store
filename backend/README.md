@@ -83,7 +83,35 @@ npm test          # unit tests
 npm run test:e2e  # e2e tests
 ```
 
+## Observability
+
+- **Health check:** `GET /api/health` returns `{"status":"ok","info":{"database":"up"}}`
+  (200) and runs a `SELECT 1`, so it fails with 503 when Postgres is
+  unreachable. It's public and throttle-exempt — point the external uptime
+  monitor at it.
+- **Structured logging:** all logs are JSON via [`nestjs-pino`](https://github.com/iamolegga/nestjs-pino).
+  In production they're single-line JSON on stdout (captured by the host); in
+  dev they're pretty-printed. The `Authorization` header, request `Cookie`, and
+  `Set-Cookie` response header are stripped from logs. Health-check polling is
+  not logged. Set `LOG_LEVEL` to override the default (`info` in prod, `debug`
+  otherwise).
+- **Error tracking:** [`@sentry/nestjs`](https://docs.sentry.io/platforms/javascript/guides/nestjs/)
+  is initialised in [src/instrument.ts](./src/instrument.ts) and only sends when
+  `SENTRY_DSN` is set (no-op locally and in CI). The global
+  [`AllExceptionsFilter`](./src/common/all-exceptions.filter.ts) reports 5xx and
+  non-HTTP exceptions with request context (path, method, `orderId`); 4xx client
+  errors are not reported.
+
+### Deploy-time setup (needs account access)
+
+1. Create a Sentry project (free Developer tier) and set `SENTRY_DSN` on Render.
+   Optionally set `SENTRY_TRACES_SAMPLE_RATE` (default `0`).
+2. Add a Sentry alert rule (e.g. "a new issue is created") to email/Slack on
+   new errors.
+3. Add an external uptime monitor (e.g. BetterStack free) hitting
+   `https://<api-host>/api/health` every 1–3 min, alerting on non-200.
+
 ## Environment variables
 
 See [.env.example](./.env.example) — it documents every variable the app
-reads, including the SSL and migration toggles.
+reads, including the SSL, migration, logging, and Sentry toggles.
