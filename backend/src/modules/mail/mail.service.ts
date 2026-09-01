@@ -5,7 +5,7 @@ import { Resend } from 'resend';
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private resend: Resend;
+  private resend: Resend | null = null;
   private fromEmail: string;
 
   constructor(private config: ConfigService) {
@@ -14,8 +14,9 @@ export class MailService {
       this.logger.warn(
         'RESEND_API_KEY is not set — password reset emails will fail.',
       );
+    } else {
+      this.resend = new Resend(apiKey);
     }
-    this.resend = new Resend(apiKey);
     this.fromEmail = this.config.get<string>(
       'MAIL_FROM',
       'AVVENIRE <onboarding@resend.dev>',
@@ -23,6 +24,11 @@ export class MailService {
   }
 
   async sendPasswordReset(to: string, resetUrl: string): Promise<void> {
+    if (!this.resend) {
+      throw new Error(
+        'Mail is not configured: RESEND_API_KEY is not set, cannot send password reset email.',
+      );
+    }
     // The Resend SDK resolves (does not throw) on API errors — inspect `error`.
     const { error } = await this.resend.emails.send({
       from: this.fromEmail,
