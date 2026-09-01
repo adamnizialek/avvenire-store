@@ -79,9 +79,16 @@ environments need nothing special — `npm run migration:run` builds everything.
 ## Tests
 
 ```bash
-npm test          # unit tests
-npm run test:e2e  # e2e tests
+npm test          # unit tests (jest, *.spec.ts colocated in src/)
+npm run test:e2e  # e2e tests (see below)
 ```
+
+The e2e suite needs no Docker or local Postgres: `test/run-e2e.mjs` boots a
+throwaway [embedded Postgres](https://www.npmjs.com/package/embedded-postgres),
+applies the real migrations to it, runs the suite ([test/checkout.e2e-spec.ts](./test/checkout.e2e-spec.ts):
+register → order → checkout session → signed Stripe webhook → paid), and tears
+it all down. Only the outbound Stripe API is stubbed — webhook signature
+verification is the real thing. CI runs both suites on every push.
 
 ## Observability
 

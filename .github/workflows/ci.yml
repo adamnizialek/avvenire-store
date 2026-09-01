@@ -24,6 +24,9 @@ jobs:
       - run: npm run lint:check
       - run: npx tsc --noEmit -p tsconfig.json
       - run: npm test
+      # Boots an embedded Postgres, applies the real migrations, runs the
+      # checkout happy path end to end (see backend/test/run-e2e.mjs).
+      - run: npm run test:e2e
       - run: npm run build
 
   frontend:
