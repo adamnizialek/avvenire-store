@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  ParseUUIDPipe,
+  Request,
+} from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
@@ -26,7 +34,10 @@ export class OrdersController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     return this.ordersService.findByIdForUser(id, req.user.userId);
   }
 }

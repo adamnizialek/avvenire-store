@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  ParseUUIDPipe,
   Query,
   UseInterceptors,
   UploadedFile,
@@ -73,21 +74,24 @@ export class ProductsController {
 
   @Public()
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.productsService.findById(id);
   }
 
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles('admin')
-  update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateProductDto,
+  ) {
     return this.productsService.update(id, dto);
   }
 
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles('admin')
-  remove(@Param('id') id: string) {
+  remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.productsService.remove(id);
   }
 }
