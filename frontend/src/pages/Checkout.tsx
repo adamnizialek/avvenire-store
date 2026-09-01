@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Navigate } from 'react-router';
+import { Link, Navigate } from 'react-router';
 import { CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -99,7 +99,7 @@ export default function Checkout() {
             </p>
           )}
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex-col gap-3">
           <Button
             className="w-full"
             size="lg"
@@ -109,6 +109,24 @@ export default function Checkout() {
             <CreditCard className="mr-2 h-5 w-5" />
             {loading ? 'Processing...' : 'Pay with Stripe'}
           </Button>
+          {/* Consumer-law information duty: the order is placed with an
+              obligation to pay, under the published terms. */}
+          <p className="text-center text-xs text-muted-foreground">
+            By paying you place an order with an obligation to pay and accept
+            the{' '}
+            <Link to="/terms" className="underline hover:text-foreground">
+              Terms &amp; Conditions
+            </Link>
+            . See your{' '}
+            <Link to="/returns" className="underline hover:text-foreground">
+              14-day right of withdrawal
+            </Link>{' '}
+            and our{' '}
+            <Link to="/privacy" className="underline hover:text-foreground">
+              Privacy Policy
+            </Link>
+            .
+          </p>
         </CardFooter>
       </Card>
     </div>

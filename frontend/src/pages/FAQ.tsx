@@ -3,17 +3,17 @@ export default function FAQ() {
     {
       question: 'How long does delivery take?',
       answer:
-        'Standard delivery within Poland takes 3-5 business days. EU orders take 5-7 business days. International orders may take up to 14 business days.',
+        'Orders are dispatched directly from our fulfillment partner’s warehouse and typically arrive within 5-10 business days of payment. The current estimate is always shown at checkout before you pay, and shipping is free on every order.',
     },
     {
       question: 'What payment methods do you accept?',
       answer:
-        'We accept Visa, Mastercard, Apple Pay, Google Pay, PayPal, and Klarna. All payments are securely processed through Stripe.',
+        'All payments are securely processed through Stripe. The methods currently available — payment cards and wallets such as Apple Pay and Google Pay — are shown on the payment page. You are charged in USD.',
     },
     {
       question: 'Can I return or exchange an item?',
       answer:
-        'Yes, you have 14 days from the date of delivery to return any item in its original condition. Please see our Returns page for more details.',
+        'Yes — as an EU consumer you have 14 days from delivery to withdraw from your purchase without giving a reason, and separately a two-year protection if the item is faulty. See our Returns page for both procedures and the withdrawal form.',
     },
     {
       question: 'How do I track my order?',
@@ -23,7 +23,7 @@ export default function FAQ() {
     {
       question: 'Do you ship internationally?',
       answer:
-        'Yes, we ship worldwide. Shipping costs for international orders are calculated at checkout. Please note that customs duties may apply.',
+        'We currently ship to Poland, Germany, France, Italy, Spain, the Netherlands, Czechia, Slovakia, Austria, Sweden, the United Kingdom and the United States — free of charge. For non-EU destinations, customs duties and import taxes may apply and are your responsibility.',
     },
     {
       question: 'How do I choose the right size?',
