@@ -1,16 +1,24 @@
-# Nightly logical backup of the Neon database (issue #3 deferral).
+# Nightly encrypted off-site backup of the Neon database (issues #3/#4).
 #
-# Neon's free tier only offers a 6-hour point-in-time restore window — far
-# too short for a store holding order/tax records. Until the project moves to
-# the Neon Launch plan (7-day PITR), this workflow keeps a nightly pg_dump as
-# a GitHub Actions artifact (private to the repo, encrypted at rest by
-# GitHub, auto-deleted after 30 days). Worst-case data loss drops from
-# "anything older than 6 hours" to "since last night".
+# Neon's free tier only offers a 6-hour point-in-time restore window - far
+# too short for a store holding order/tax records. This workflow keeps a
+# nightly pg_dump as a GitHub Actions artifact and, before uploading, proves
+# the dump actually restores: it decrypts it and replays it into a throwaway
+# Postgres in this very run. Every night is a tested restore, not an assumed
+# one. Worst-case data loss drops from "anything older than 6 hours" to
+# "since last night".
 #
-# Requires the repository secret NEON_DATABASE_URL: the full connection
-# string from the Neon console (postgresql://user:pass@host/db?sslmode=require).
+# The dump is GPG-encrypted (AES-256) BEFORE upload: this repository is
+# public, and artifacts on public repos are downloadable by anyone with a
+# GitHub account. A plaintext dump would be a public leak of customer data.
 #
-# Restore with: pg_restore -d "$TARGET_URL" --clean --if-exists backup.dump
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   NEON_DATABASE_URL  - connection string from the Neon console
+#                        (postgresql://user:pass@host/db?sslmode=require)
+#   BACKUP_PASSPHRASE  - encryption passphrase; KEEP A COPY IN A PASSWORD
+#                        MANAGER - losing it makes every backup unreadable.
+#
+# Restore procedure: backend/README.md -> "Database backups & restore".
 name: Nightly database backup
 
 on:
@@ -22,17 +30,42 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    services:
+      # Throwaway Postgres used only to prove the dump restores.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
-      - name: Check the secret is configured
+      - name: Check the secrets are configured
         env:
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
         run: |
+          missing=0
           if [ -z "$NEON_DATABASE_URL" ]; then
             echo "::error::NEON_DATABASE_URL secret is not set — no backup was taken." \
               "Add it under Settings → Secrets and variables → Actions" \
               "(the connection string from the Neon console)."
-            exit 1
+            missing=1
           fi
+          if [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::BACKUP_PASSPHRASE secret is not set — no backup was taken." \
+              "Add it under Settings → Secrets and variables → Actions and keep a" \
+              "copy in a password manager (losing it makes backups unreadable)."
+            missing=1
+          fi
+          exit $missing
+
+      - uses: actions/checkout@v4
 
       # The runner's preinstalled client can be older than the server;
       # pg_dump refuses to dump a newer server, so install client 17
@@ -50,18 +83,26 @@ jobs:
       - name: Dump the database
         env:
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: bash scripts/db-backup.sh dump "$NEON_DATABASE_URL" "backup-$(date -u +%Y-%m-%d).dump"
+
+      - name: Encrypt the dump (removes the plaintext)
+        run: bash scripts/db-backup.sh encrypt backup-*.dump
+
+      - name: Prove the backup restores (decrypt + replay into throwaway Postgres)
         run: |
-          pg_dump "$NEON_DATABASE_URL" --format=custom --compress=9 \
-            --file="backup-$(date -u +%Y-%m-%d).dump"
-          ls -lh backup-*.dump
+          bash scripts/db-backup.sh decrypt backup-*.dump.gpg restored.dump
+          psql postgresql://postgres:postgres@localhost:5432/postgres \
+            -c 'CREATE DATABASE restore_test'
+          bash scripts/db-backup.sh restore \
+            postgresql://postgres:postgres@localhost:5432/restore_test restored.dump
+          bash scripts/db-backup.sh verify \
+            postgresql://postgres:postgres@localhost:5432/restore_test
+          rm restored.dump
 
-      - name: Verify the dump is restorable (catalog readback)
-        run: pg_restore --list backup-*.dump > /dev/null && echo "dump verified"
-
-      - name: Upload backup artifact
+      - name: Upload encrypted backup artifact
         uses: actions/upload-artifact@v4
         with:
           name: db-backup-${{ github.run_id }}
-          path: backup-*.dump
+          path: backup-*.dump.gpg
           retention-days: 30
           if-no-files-found: error

@@ -118,6 +118,47 @@ verification is the real thing. CI runs both suites on every push.
 3. Add an external uptime monitor (e.g. BetterStack free) hitting
    `https://<api-host>/api/health` every 1–3 min, alerting on non-200.
 
+## Database backups & restore
+
+A nightly GitHub Actions workflow
+([db-backup.yml](../.github/workflows/db-backup.yml)) takes a `pg_dump` of
+the Neon database, **encrypts it with GPG (AES-256)** — the repo is public
+and artifacts on public repos are downloadable by anyone with a GitHub
+account — proves the dump restores by replaying it into a throwaway Postgres
+inside the same run, and uploads the encrypted file as a workflow artifact
+kept for 30 days. Every night is a tested restore, not an assumed one.
+
+It needs two repository secrets (Settings → Secrets and variables → Actions):
+
+- `NEON_DATABASE_URL` — the connection string from the Neon console.
+- `BACKUP_PASSPHRASE` — the encryption passphrase. **Keep a copy in a
+  password manager**: losing it makes every backup unreadable. Until both
+  secrets exist the workflow fails loudly — a red run always means no backup
+  was taken.
+
+### Restoring a backup
+
+1. Download the artifact from the workflow run (Actions → Nightly database
+   backup → the run → Artifacts) and unzip it to get `backup-<date>.dump.gpg`.
+2. Decrypt and restore (needs `postgresql-client` 17+ and `gpg`):
+
+   ```bash
+   export BACKUP_PASSPHRASE='<from the password manager>'
+   bash scripts/db-backup.sh decrypt backup-<date>.dump.gpg backup.dump
+   bash scripts/db-backup.sh restore "postgresql://<target-connection-string>" backup.dump
+   bash scripts/db-backup.sh verify "postgresql://<target-connection-string>"
+   ```
+
+   The restore uses `--clean --if-exists`, so pointing it at an existing
+   database **replaces** that database's contents with the backup.
+
+The whole procedure can be rehearsed any time without production secrets:
+run the "DB backup restore drill" workflow
+([db-restore-drill.yml](../.github/workflows/db-restore-drill.yml)) from the
+Actions tab — it builds a throwaway database with the real migrations, seeds
+it, and runs the identical dump → encrypt → decrypt → restore → verify chain,
+asserting the data survives byte-for-byte.
+
 ## Environment variables
 
 See [.env.example](./.env.example) — it documents every variable the app

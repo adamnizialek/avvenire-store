@@ -15,12 +15,19 @@ The paid upgrades are deferred for now. Two free stopgaps cover the gap:
   100 CU-h free budget). Render free grants 750 instance-hours/month; one
   always-warm service (~744 h) fits. The repo is public, so the Actions
   minutes are free.
-- **`.github/workflows/db-backup.yml`** takes a nightly `pg_dump` and keeps
-  30 days of artifacts, shrinking the worst-case data loss from Neon free's
-  6-hour restore window to ~24 hours. **Requires the `NEON_DATABASE_URL`
-  repository secret** (Settings → Secrets and variables → Actions; the
-  connection string from the Neon console). Until the secret is set, the
+- **`.github/workflows/db-backup.yml`** takes a nightly `pg_dump`,
+  GPG-encrypts it (mandatory: the repo is public, and artifacts on public
+  repos are downloadable by anyone with a GitHub account), proves it
+  restores into a throwaway Postgres in the same run, and keeps 30 days of
+  encrypted artifacts — shrinking the worst-case data loss from Neon free's
+  6-hour restore window to ~24 hours. **Requires two repository secrets**
+  (Settings → Secrets and variables → Actions): `NEON_DATABASE_URL` (from
+  the Neon console) and `BACKUP_PASSPHRASE` (keep a copy in a password
+  manager — losing it makes backups unreadable). Until both are set, the
   nightly run fails with an explicit error — a red run means no backup.
+  Restore procedure: `backend/README.md` → "Database backups & restore";
+  rehearsable any time via the secret-free "DB backup restore drill"
+  workflow.
 
 Residual risks accepted in deferral mode: GitHub's cron is best-effort (an
 occasional delayed ping can let Render doze once in a while), scheduled
