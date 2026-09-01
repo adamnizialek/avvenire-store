@@ -4,6 +4,30 @@ Status of the code side: **done** — the connection pool is explicitly sized
 (`typeorm-options.ts`, `DB_POOL_MAX`, default 10). What remains are the two
 billing actions below, which require the Render/Neon account owner.
 
+## Deferral mode (decided 2026-09-01)
+
+The paid upgrades are deferred for now. Two free stopgaps cover the gap:
+
+- **`.github/workflows/keep-warm.yml`** pings `/api/health/live` every 10
+  minutes so the free Render instance never spins down. The endpoint
+  deliberately skips the DB check — a DB ping every 10 minutes would hold
+  Neon's compute awake ~50% of the time (~93 CU-h/month, nearly the whole
+  100 CU-h free budget). Render free grants 750 instance-hours/month; one
+  always-warm service (~744 h) fits. The repo is public, so the Actions
+  minutes are free.
+- **`.github/workflows/db-backup.yml`** takes a nightly `pg_dump` and keeps
+  30 days of artifacts, shrinking the worst-case data loss from Neon free's
+  6-hour restore window to ~24 hours. **Requires the `NEON_DATABASE_URL`
+  repository secret** (Settings → Secrets and variables → Actions; the
+  connection string from the Neon console). Until the secret is set, the
+  nightly run fails with an explicit error — a red run means no backup.
+
+Residual risks accepted in deferral mode: GitHub's cron is best-effort (an
+occasional delayed ping can let Render doze once in a while), scheduled
+workflows are auto-disabled after 60 days without repo activity, and up to a
+day of orders can be lost between backups. Delete both workflows when the
+paid upgrades below happen.
+
 ## Measured baseline (2026-09-01, free tier)
 
 ```

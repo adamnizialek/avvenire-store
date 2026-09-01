@@ -3,6 +3,18 @@ import { DataSource } from 'typeorm';
 import { HealthController } from './health.controller';
 
 describe('HealthController', () => {
+  it('liveness endpoint answers without ever touching the database', () => {
+    const query = jest.fn();
+    const dataSource = { query } as unknown as DataSource;
+
+    const result = new HealthController(dataSource).live();
+
+    expect(result).toEqual({ status: 'ok' });
+    // The keep-warm cron polls this every 10 minutes — a DB call here would
+    // hold Neon's compute awake and drain the free CU-h budget.
+    expect(query).not.toHaveBeenCalled();
+  });
+
   it('reports ok when the database ping succeeds', async () => {
     const query = jest.fn().mockResolvedValue([{ '?column?': 1 }]);
     const dataSource = { query } as unknown as DataSource;

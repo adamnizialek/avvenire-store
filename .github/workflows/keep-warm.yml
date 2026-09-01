@@ -1,0 +1,31 @@
+# Stops the Render free-tier backend from spinning down (issue #3 deferral).
+#
+# Free Render sleeps after ~15 idle minutes and cold-starts in ~22s — right
+# in the middle of a customer's first page load. A ping every 10 minutes
+# keeps the process warm. The target is /api/health/live, which deliberately
+# does NOT touch the database, so Neon's compute still autosuspends between
+# real requests and its free CU-h budget is spent on customers, not pings.
+#
+# Success = the service answered at all (any HTTP status warms it; the
+# deployed build may predate the endpoint and 404). The run only fails on
+# network errors/timeouts — i.e. the service is actually unreachable — so a
+# failure email from this workflow means "the API is down", not "bad status".
+#
+# Delete this workflow when the backend moves to an always-on paid instance.
+name: Keep backend warm
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping the API
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 70 \
+            https://avvenire-api.onrender.com/api/health/live)
+          echo "HTTP $code"

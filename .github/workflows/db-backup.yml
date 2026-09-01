@@ -1,0 +1,67 @@
+# Nightly logical backup of the Neon database (issue #3 deferral).
+#
+# Neon's free tier only offers a 6-hour point-in-time restore window — far
+# too short for a store holding order/tax records. Until the project moves to
+# the Neon Launch plan (7-day PITR), this workflow keeps a nightly pg_dump as
+# a GitHub Actions artifact (private to the repo, encrypted at rest by
+# GitHub, auto-deleted after 30 days). Worst-case data loss drops from
+# "anything older than 6 hours" to "since last night".
+#
+# Requires the repository secret NEON_DATABASE_URL: the full connection
+# string from the Neon console (postgresql://user:pass@host/db?sslmode=require).
+#
+# Restore with: pg_restore -d "$TARGET_URL" --clean --if-exists backup.dump
+name: Nightly database backup
+
+on:
+  schedule:
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check the secret is configured
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          if [ -z "$NEON_DATABASE_URL" ]; then
+            echo "::error::NEON_DATABASE_URL secret is not set — no backup was taken." \
+              "Add it under Settings → Secrets and variables → Actions" \
+              "(the connection string from the Neon console)."
+            exit 1
+          fi
+
+      # The runner's preinstalled client can be older than the server;
+      # pg_dump refuses to dump a newer server, so install client 17
+      # (matching the Postgres major this project runs) from PGDG.
+      - name: Install postgresql-client-17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Dump the database
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          pg_dump "$NEON_DATABASE_URL" --format=custom --compress=9 \
+            --file="backup-$(date -u +%Y-%m-%d).dump"
+          ls -lh backup-*.dump
+
+      - name: Verify the dump is restorable (catalog readback)
+        run: pg_restore --list backup-*.dump > /dev/null && echo "dump verified"
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backup-*.dump
+          retention-days: 30
+          if-no-files-found: error

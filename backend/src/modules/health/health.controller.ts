@@ -35,4 +35,20 @@ export class HealthController {
     }
     return { status: 'ok', info: { database: 'up' } };
   }
+
+  /**
+   * GET /api/health/live — process liveness only, deliberately WITHOUT the
+   * database ping. The keep-warm cron (.github/workflows/keep-warm.yml) hits
+   * this every 10 minutes to stop Render's free instance from spinning down;
+   * touching the DB here would also hold Neon's compute awake ~50% of the
+   * time and burn most of its free CU-h budget on pings. Neon's own resume
+   * is ~0.5s, so letting it suspend between real requests costs nothing
+   * customers would notice.
+   */
+  @Public()
+  @SkipThrottle()
+  @Get('live')
+  live(): { status: 'ok' } {
+    return { status: 'ok' };
+  }
 }
