@@ -34,7 +34,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // Re-validate against the DB on every request so role changes take effect
     // immediately and password resets revoke previously issued tokens.
     const user = await this.usersService.findById(payload.sub);
-    if (!user) {
+    // A deleted (anonymized) account is treated exactly like a missing one.
+    // Its tokenVersion bump revokes old JWTs anyway; this check makes the
+    // intent explicit and closes the gap for any token minted mid-deletion.
+    if (!user || user.deletedAt) {
       throw new UnauthorizedException();
     }
     if ((payload.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {

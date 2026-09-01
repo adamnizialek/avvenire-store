@@ -62,6 +62,20 @@ describe('JwtStrategy tokenVersion revocation', () => {
     );
   });
 
+  it('rejects a token for a deleted (anonymized) account, even with a matching version', async () => {
+    findById.mockResolvedValue({
+      id: 'u1',
+      email: 'deleted-u1@anonymized.invalid',
+      role: 'user',
+      tokenVersion: 1,
+      deletedAt: new Date(),
+    });
+
+    await expect(strategy.validate(payload)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
   it('treats a missing tokenVersion claim as version 0', async () => {
     findById.mockResolvedValue({
       id: 'u1',

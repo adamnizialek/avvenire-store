@@ -134,4 +134,66 @@ describe('UsersService reset-token lifecycle', () => {
       );
     });
   });
+
+  describe('anonymize (GDPR erasure)', () => {
+    function accountToDelete(): User {
+      return {
+        id: 'u1',
+        email: 'shopper@example.com',
+        password: 'bcrypt-hash-of-real-password',
+        role: 'user',
+        resetToken: sha256('pending-reset'),
+        resetTokenExpiry: new Date(Date.now() + 1000),
+        tokenVersion: 3,
+        deletedAt: null,
+      } as User;
+    }
+
+    it('is a no-op for an unknown user', async () => {
+      findOne.mockResolvedValue(null);
+
+      await service.anonymize('ghost');
+
+      expect(save).not.toHaveBeenCalled();
+    });
+
+    it('destroys every personal field but keeps the row (orders reference it)', async () => {
+      const user = accountToDelete();
+      findOne.mockResolvedValue(user);
+
+      await service.anonymize('u1');
+
+      expect(save).toHaveBeenCalledWith(user);
+      // The email becomes a per-user tombstone: no personal data, still
+      // unique, and it frees shopper@example.com for a fresh registration.
+      expect(user.email).toBe('deleted-u1@anonymized.invalid');
+      // Any pending reset link dies with the account.
+      expect(user.resetToken).toBeNull();
+      expect(user.resetTokenExpiry).toBeNull();
+      expect(user.deletedAt).toBeInstanceOf(Date);
+    });
+
+    it('replaces the password with an unusable random hash', async () => {
+      const user = accountToDelete();
+      findOne.mockResolvedValue(user);
+
+      await service.anonymize('u1');
+
+      expect(user.password).not.toBe('bcrypt-hash-of-real-password');
+      // Valid bcrypt output, but of 64 random hex chars nobody knows — so no
+      // credential can ever match it.
+      await expect(
+        bcrypt.compare('bcrypt-hash-of-real-password', user.password),
+      ).resolves.toBe(false);
+    });
+
+    it('bumps tokenVersion so every outstanding JWT is revoked immediately', async () => {
+      const user = accountToDelete();
+      findOne.mockResolvedValue(user);
+
+      await service.anonymize('u1');
+
+      expect(user.tokenVersion).toBe(4);
+    });
+  });
 });

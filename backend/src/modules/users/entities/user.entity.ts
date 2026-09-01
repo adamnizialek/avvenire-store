@@ -32,6 +32,12 @@ export class User {
   @Column({ type: 'timestamp', nullable: true, select: false })
   resetTokenExpiry: Date | null;
 
+  // GDPR erasure marker. The row itself is kept (orders reference it and are
+  // retained for tax purposes) but every personal field is anonymized when
+  // this is set.
+  @Column({ type: 'timestamp', nullable: true })
+  deletedAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

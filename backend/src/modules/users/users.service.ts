@@ -63,6 +63,40 @@ export class UsersService {
     return token;
   }
 
+  /**
+   * Returns the user including the password hash and tokenVersion, looked up
+   * by id. Use only to verify the current password on sensitive self-service
+   * actions (e.g. account deletion) — never return the result to a client.
+   */
+  async findByIdWithAuth(id: string): Promise<User | null> {
+    return this.usersRepository.findOne({
+      where: { id },
+      select: ['id', 'email', 'password', 'role', 'tokenVersion', 'deletedAt'],
+    });
+  }
+
+  /**
+   * GDPR erasure: anonymizes the account in place instead of deleting the
+   * row, so retained order rows (tax/accounting obligation) keep a valid
+   * owner reference while every piece of personal data is destroyed. The
+   * tokenVersion bump revokes all outstanding JWTs immediately, and the
+   * unusable random password plus tombstone email make the account
+   * permanently un-loginable — while freeing the original email address for
+   * a future fresh registration.
+   */
+  async anonymize(id: string): Promise<void> {
+    const user = await this.findByIdWithAuth(id);
+    if (!user) return;
+
+    user.email = `deleted-${id}@anonymized.invalid`;
+    user.password = await bcrypt.hash(randomBytes(32).toString('hex'), 10);
+    user.resetToken = null;
+    user.resetTokenExpiry = null;
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    user.deletedAt = new Date();
+    await this.usersRepository.save(user);
+  }
+
   async resetPassword(token: string, newPassword: string): Promise<boolean> {
     const user = await this.usersRepository.findOne({
       where: {

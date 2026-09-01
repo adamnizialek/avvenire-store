@@ -1,3 +1,5 @@
+import { Link } from 'react-router';
+
 export default function Privacy() {
   return (
     <div className="container mx-auto max-w-3xl px-4 py-12">
@@ -75,7 +77,21 @@ export default function Privacy() {
             <li>Lodge a complaint with a supervisory authority (UODO in Poland)</li>
           </ul>
           <p className="mt-2">
-            To exercise any of these rights, email us at contact@avvenire.com.
+            You can exercise the two most common rights yourself, instantly:
+            under{' '}
+            <Link to="/orders" className="underline hover:text-foreground">
+              My Orders → Privacy &amp; data
+            </Link>{' '}
+            you can download a copy of your personal data and order history
+            (data access/portability) or delete your account (erasure).
+            Deleting your account anonymizes it immediately; order records are
+            retained without any link to you for the period described in
+            section 6.
+          </p>
+          <p className="mt-2">
+            For any other request — or if you can no longer log in — email us
+            at contact@avvenire.com. We respond to data-subject requests within
+            30 days, as required by GDPR.
           </p>
         </section>
 
