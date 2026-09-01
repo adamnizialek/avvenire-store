@@ -42,5 +42,23 @@ export function buildTypeOrmOptions(config: ConfigService): AppTypeOrmOptions {
     migrations: [join(__dirname, '../../migrations/*{.ts,.js}')],
     migrationsRun,
     synchronize,
+    // Explicit node-postgres pool sizing (issue #3). One always-on Render
+    // instance against Neon: 10 pooled connections fit comfortably inside
+    // Neon's per-compute connection limit (112 even on the smallest compute)
+    // while covering checkout bursts — the row locks in order creation hold
+    // connections for whole transactions. Idle connections are released
+    // after 30s so a quiet shop lets Neon's compute scale to zero, and
+    // connectionTimeoutMillis turns pool exhaustion into a fast, visible
+    // error instead of requests hanging forever.
+    extra: {
+      // Env vars arrive as strings — parse, and fall back on anything unset
+      // or unparsable rather than handing pg a NaN pool size.
+      max: parseInt(config.get<string>('DB_POOL_MAX', ''), 10) || 10,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 10_000,
+      // Detect connections silently dropped by Neon compute suspend/resume
+      // instead of failing the first query after a pause.
+      keepAlive: true,
+    },
   };
 }

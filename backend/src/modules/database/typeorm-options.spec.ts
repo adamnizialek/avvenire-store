@@ -64,4 +64,29 @@ describe('buildTypeOrmOptions', () => {
     const options = buildTypeOrmOptions(makeConfig({ DB_SSL: 'true' }));
     expect(options.ssl).toEqual({ rejectUnauthorized: true });
   });
+
+  describe('connection pool', () => {
+    it('bounds the pool explicitly and fails fast on exhaustion', () => {
+      const options = buildTypeOrmOptions(makeConfig({}));
+      expect(options.extra).toEqual({
+        max: 10,
+        idleTimeoutMillis: 30_000,
+        connectionTimeoutMillis: 10_000,
+        keepAlive: true,
+      });
+    });
+
+    it('lets DB_POOL_MAX resize the pool for a different DB plan', () => {
+      const options = buildTypeOrmOptions(makeConfig({ DB_POOL_MAX: '25' }));
+      // Parsed to a real number — env vars arrive as strings.
+      expect((options.extra as { max: number }).max).toBe(25);
+    });
+
+    it('falls back to the default on an unparsable DB_POOL_MAX', () => {
+      const options = buildTypeOrmOptions(
+        makeConfig({ DB_POOL_MAX: 'not-a-number' }),
+      );
+      expect((options.extra as { max: number }).max).toBe(10);
+    });
+  });
 });
