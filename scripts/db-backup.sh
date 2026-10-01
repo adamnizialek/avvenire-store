@@ -12,12 +12,13 @@ set -euo pipefail
 # public repos are downloadable by anyone with a GitHub account - a plaintext
 # pg_dump of customer data must never be uploaded.
 
-# GitHub runners preinstall postgresql-client 16 on PATH; the workflows
-# install client 17 from PGDG, which lands in /usr/lib/postgresql/17/bin
-# without taking PATH precedence. pg_dump 16 refuses to dump a 17 server, so
-# prefer the 17 binaries whenever they exist.
-if [ -d /usr/lib/postgresql/17/bin ]; then
-  PATH="/usr/lib/postgresql/17/bin:$PATH"
+# GitHub runners preinstall an older postgresql-client on PATH; the workflows
+# install a newer client from PGDG, which lands in /usr/lib/postgresql/<N>/bin
+# without taking PATH precedence. pg_dump refuses to dump a server newer than
+# itself but dumps any older one, so prefer the newest installed binaries.
+pg_bin=$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -n 1 || true)
+if [ -n "$pg_bin" ]; then
+  PATH="$pg_bin:$PATH"
 fi
 
 cmd="${1:?usage: db-backup.sh <dump|encrypt|decrypt|restore|verify> ...}"
