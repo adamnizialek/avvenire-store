@@ -23,7 +23,7 @@ jobs:
       RESTORE_URL: postgresql://postgres:postgres@localhost:5432/drill_restore
     services:
       postgres:
-        image: postgres:17-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_PASSWORD: postgres
         ports:
@@ -42,7 +42,7 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
-      - name: Install postgresql-client-17
+      - name: Install postgresql-client-18
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
           sudo curl --fail -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
@@ -50,7 +50,7 @@ jobs:
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
             | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client-17
+          sudo apt-get install -y -qq postgresql-client-18
 
       - name: Create the source database with the real schema (migrations)
         working-directory: backend
@@ -93,7 +93,7 @@ jobs:
           psql postgresql://postgres:postgres@localhost:5432/postgres \
             -c 'CREATE DATABASE drill_restore'
           bash scripts/db-backup.sh restore "$RESTORE_URL" drill-restored.dump
-          bash scripts/db-backup.sh verify "$RESTORE_URL"
+          bash scripts/db-backup.sh verify "$RESTORE_URL" drill-restored.dump
 
       - name: Confirm the seeded rows survived the round trip
         run: |

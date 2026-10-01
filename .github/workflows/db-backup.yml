@@ -33,9 +33,10 @@ jobs:
     env:
       BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
     services:
-      # Throwaway Postgres used only to prove the dump restores.
+      # Throwaway Postgres used only to prove the dump restores. Keep its
+      # major version equal to Neon's (SELECT version() in the Neon console).
       postgres:
-        image: postgres:17-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_PASSWORD: postgres
         ports:
@@ -68,9 +69,9 @@ jobs:
       - uses: actions/checkout@v4
 
       # The runner's preinstalled client can be older than the server;
-      # pg_dump refuses to dump a newer server, so install client 17
-      # (matching the Postgres major this project runs) from PGDG.
-      - name: Install postgresql-client-17
+      # pg_dump refuses to dump a newer server, so install client 18
+      # (matching Neon's Postgres major, currently 18) from PGDG.
+      - name: Install postgresql-client-18
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
           sudo curl --fail -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
@@ -78,7 +79,7 @@ jobs:
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
             | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client-17
+          sudo apt-get install -y -qq postgresql-client-18
 
       - name: Dump the database
         env:
@@ -96,7 +97,7 @@ jobs:
           bash scripts/db-backup.sh restore \
             postgresql://postgres:postgres@localhost:5432/restore_test restored.dump
           bash scripts/db-backup.sh verify \
-            postgresql://postgres:postgres@localhost:5432/restore_test
+            postgresql://postgres:postgres@localhost:5432/restore_test restored.dump
           rm restored.dump
 
       - name: Upload encrypted backup artifact
