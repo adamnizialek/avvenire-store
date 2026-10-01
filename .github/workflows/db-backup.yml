@@ -97,7 +97,7 @@ jobs:
           bash scripts/db-backup.sh restore \
             postgresql://postgres:postgres@localhost:5432/restore_test restored.dump
           bash scripts/db-backup.sh verify \
-            postgresql://postgres:postgres@localhost:5432/restore_test
+            postgresql://postgres:postgres@localhost:5432/restore_test restored.dump
           rm restored.dump
 
       - name: Upload encrypted backup artifact

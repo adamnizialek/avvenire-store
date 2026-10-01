@@ -93,7 +93,7 @@ jobs:
           psql postgresql://postgres:postgres@localhost:5432/postgres \
             -c 'CREATE DATABASE drill_restore'
           bash scripts/db-backup.sh restore "$RESTORE_URL" drill-restored.dump
-          bash scripts/db-backup.sh verify "$RESTORE_URL"
+          bash scripts/db-backup.sh verify "$RESTORE_URL" drill-restored.dump
 
       - name: Confirm the seeded rows survived the round trip
         run: |

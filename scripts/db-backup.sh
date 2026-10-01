@@ -43,12 +43,22 @@ case "$cmd" in
   restore) # restore <db-url> <dumpfile>
     pg_restore --dbname="$1" --clean --if-exists --no-owner --no-privileges "$2"
     ;;
-  verify) # verify <db-url> - every application table restored and queryable
-    for table in users products orders order_items processed_stripe_events migrations; do
-      count=$(psql "$1" -Atc "SELECT count(*) FROM \"$table\"")
+  verify) # verify <db-url> <dumpfile> - every table in the dump restored and queryable
+    # Driven by the dump's own table list rather than the app's expected
+    # schema: a backup must still be taken (and proven) when the live
+    # database has drifted from the migrations.
+    tables=$(pg_restore --list "$2" | awk '$4 == "TABLE" && $5 == "DATA" { print $6 "." $7 }')
+    for core in users products orders order_items; do
+      if ! grep -qx "public\.$core" <<<"$tables"; then
+        echo "dump is missing core table public.$core" >&2
+        exit 1
+      fi
+    done
+    for table in $tables; do
+      count=$(psql "$1" -Atc "SELECT count(*) FROM \"${table%%.*}\".\"${table#*.}\"")
       echo "  $table: $count rows"
     done
-    echo "restore verified: all application tables present and queryable"
+    echo "restore verified: all $(wc -w <<<"$tables") dumped tables present and queryable"
     ;;
   *)
     echo "unknown command: $cmd" >&2
