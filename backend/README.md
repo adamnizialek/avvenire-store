@@ -140,13 +140,13 @@ It needs two repository secrets (Settings → Secrets and variables → Actions)
 
 1. Download the artifact from the workflow run (Actions → Nightly database
    backup → the run → Artifacts) and unzip it to get `backup-<date>.dump.gpg`.
-2. Decrypt and restore (needs `postgresql-client` 17+ and `gpg`):
+2. Decrypt and restore (needs `postgresql-client` 18+ and `gpg`):
 
    ```bash
    export BACKUP_PASSPHRASE='<from the password manager>'
    bash scripts/db-backup.sh decrypt backup-<date>.dump.gpg backup.dump
    bash scripts/db-backup.sh restore "postgresql://<target-connection-string>" backup.dump
-   bash scripts/db-backup.sh verify "postgresql://<target-connection-string>"
+   bash scripts/db-backup.sh verify "postgresql://<target-connection-string>" backup.dump
    ```
 
    The restore uses `--clean --if-exists`, so pointing it at an existing
