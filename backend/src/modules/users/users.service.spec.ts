@@ -1,6 +1,7 @@
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { createHash } from 'crypto';
 import * as bcrypt from 'bcrypt';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
 
@@ -145,6 +146,7 @@ describe('UsersService reset-token lifecycle', () => {
         resetToken: sha256('pending-reset'),
         resetTokenExpiry: new Date(Date.now() + 1000),
         tokenVersion: 3,
+        googleId: 'g-123',
         deletedAt: null,
       } as User;
     }
@@ -170,6 +172,8 @@ describe('UsersService reset-token lifecycle', () => {
       // Any pending reset link dies with the account.
       expect(user.resetToken).toBeNull();
       expect(user.resetTokenExpiry).toBeNull();
+      // Signing in with the same Google account later must not reach it.
+      expect(user.googleId).toBeNull();
       expect(user.deletedAt).toBeInstanceOf(Date);
     });
 
@@ -195,5 +199,162 @@ describe('UsersService reset-token lifecycle', () => {
 
       expect(user.tokenVersion).toBe(4);
     });
+  });
+});
+
+describe('UsersService.findOrCreateForGoogle', () => {
+  const identity = {
+    sub: 'g-123',
+    email: 'owner@gmail.com',
+    googleOwnsEmail: true,
+  };
+  let service: UsersService;
+  let findOne: jest.Mock;
+  let save: jest.Mock;
+  let create: jest.Mock;
+
+  beforeEach(() => {
+    findOne = jest.fn().mockResolvedValue(null);
+    save = jest.fn((user: User) => Promise.resolve(user));
+    create = jest.fn((fields: Partial<User>) => ({ role: 'user', ...fields }));
+    service = new UsersService({
+      findOne,
+      save,
+      create,
+    } as unknown as Repository<User>);
+  });
+
+  it('signs an already-linked account straight in, sessions untouched', async () => {
+    const user = {
+      id: 'u1',
+      email: 'owner@gmail.com',
+      role: 'user',
+      tokenVersion: 4,
+    } as User;
+    findOne.mockResolvedValueOnce(user);
+
+    const result = await service.findOrCreateForGoogle(identity, false);
+
+    expect(findOne).toHaveBeenCalledTimes(1);
+    expect(findOne).toHaveBeenCalledWith({ where: { googleId: 'g-123' } });
+    expect(result.password).toBeUndefined();
+    expect(result.tokenVersion).toBe(4);
+  });
+
+  it('links a password account with the same email, retiring its password and sessions', async () => {
+    const user = {
+      id: 'u1',
+      email: 'Owner@Gmail.com',
+      password: 'hash-set-by-whoever-registered',
+      role: 'user',
+      tokenVersion: 4,
+      resetToken: 'pending',
+      resetTokenExpiry: new Date(),
+      googleId: null,
+    } as User;
+    findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(user);
+
+    const result = await service.findOrCreateForGoogle(identity, false);
+
+    expect(result.googleId).toBe('g-123');
+    // Whoever registered the address first (maybe not its owner) loses the
+    // password and every session they held.
+    expect(result.password).not.toBe('hash-set-by-whoever-registered');
+    expect(result.password).toMatch(/^\$2[aby]\$/);
+    // Stored casing follows Google, so "Forgot password" finds the account.
+    expect(result.email).toBe('owner@gmail.com');
+    expect(result.tokenVersion).toBe(5);
+    expect(result.resetToken).toBeNull();
+    expect(result.role).toBe('user');
+    expect(save).toHaveBeenCalledWith(user);
+  });
+
+  it('creates a new account with an unusable password when none exists', async () => {
+    const result = await service.findOrCreateForGoogle(identity, false);
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'owner@gmail.com', googleId: 'g-123' }),
+    );
+    expect(result.password).toMatch(/^\$2[aby]\$/);
+    expect(result.role).toBe('user');
+    expect(save).toHaveBeenCalled();
+  });
+
+  it('promotes the account to admin when grantAdmin is set', async () => {
+    const created = await service.findOrCreateForGoogle(identity, true);
+    expect(created.role).toBe('admin');
+
+    const linked = { id: 'u1', role: 'user', googleId: 'g-123' } as User;
+    findOne.mockResolvedValueOnce(linked);
+    const promoted = await service.findOrCreateForGoogle(identity, true);
+    expect(promoted.role).toBe('admin');
+  });
+
+  it('neither links nor creates an account for an address Google does not own', async () => {
+    const outside = { sub: 'g-9', email: 'me@shop.pl', googleOwnsEmail: false };
+
+    // No account with that address yet: still no new one.
+    await expect(
+      service.findOrCreateForGoogle(outside, true),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    // An existing password account with it: not linked either.
+    findOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 'u1', email: 'me@shop.pl' } as User);
+    await expect(
+      service.findOrCreateForGoogle(outside, true),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(create).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('never overwrites a link to another Google account', async () => {
+    findOne.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      id: 'u1',
+      email: 'owner@gmail.com',
+      googleId: 'g-other',
+    } as User);
+
+    await expect(
+      service.findOrCreateForGoogle(identity, false),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('falls back to a case-insensitive email match', async () => {
+    const user = {
+      id: 'u1',
+      email: 'Owner@Gmail.com',
+      tokenVersion: 0,
+    } as User;
+    findOne
+      .mockResolvedValueOnce(null) // googleId
+      .mockResolvedValueOnce(null) // exact email
+      .mockResolvedValueOnce(user); // LOWER(email)
+
+    const result = await service.findOrCreateForGoogle(identity, false);
+
+    expect(findOne).toHaveBeenCalledTimes(3);
+    expect(result.googleId).toBe('g-123');
+    expect(result.email).toBe('owner@gmail.com');
+  });
+
+  it('returns the account a concurrent first sign-in just created', async () => {
+    const duplicate = new QueryFailedError('INSERT', [], {
+      code: '23505',
+    } as unknown as Error);
+    save.mockRejectedValueOnce(duplicate);
+    const winner = { id: 'u7', email: 'owner@gmail.com', role: 'user' } as User;
+    findOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(winner);
+
+    await expect(service.findOrCreateForGoogle(identity, false)).resolves.toBe(
+      winner,
+    );
   });
 });

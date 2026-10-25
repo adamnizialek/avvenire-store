@@ -32,6 +32,11 @@ export class User {
   @Column({ type: 'timestamp', nullable: true, select: false })
   resetTokenExpiry: Date | null;
 
+  // Google account id (the ID token's `sub`) once the user has signed in with
+  // Google. Set on first Google sign-in; null for password-only accounts.
+  @Column({ type: 'varchar', nullable: true, unique: true, select: false })
+  googleId: string | null;
+
   // GDPR erasure marker. The row itself is kept (orders reference it and are
   // retained for tax purposes) but every personal field is anonymized when
   // this is set.

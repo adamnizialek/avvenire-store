@@ -25,11 +25,13 @@ import { formatPrice } from '@/lib/currency';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuthStore } from '@/stores/authStore';
 import type { Order } from '@/types';
+import GoogleSignInButton from '@/components/features/GoogleSignInButton';
 
 /**
  * GDPR self-service (referenced from the Privacy Policy): download a copy of
  * your data, or delete (anonymize) your account. Deletion asks for the
- * current password so a borrowed session can't destroy the account.
+ * current password (or, for Google accounts, a fresh Google confirmation) so
+ * a borrowed session can't destroy the account.
  */
 function PrivacyAndData() {
   const navigate = useNavigate();
@@ -55,10 +57,12 @@ function PrivacyAndData() {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (
+    confirmation: { password: string } | { googleCredential: string },
+  ) => {
     setBusy(true);
     try {
-      await api.delete('/users/me', { data: { password } });
+      await api.delete('/users/me', { data: confirmation });
       await logout();
       toast.success('Your account has been deleted.');
       navigate('/');
@@ -98,7 +102,8 @@ function PrivacyAndData() {
                 <DialogDescription>
                   This cannot be undone. Your email and login are erased
                   immediately; past orders are kept without any link to you, as
-                  required by tax law. Enter your password to confirm.
+                  required by tax law. Enter your password to confirm, or
+                  confirm with Google if that's how you sign in.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-2">
@@ -111,6 +116,12 @@ function PrivacyAndData() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
+              <GoogleSignInButton
+                text="continue_with"
+                onCredential={(googleCredential) =>
+                  void handleDelete({ googleCredential })
+                }
+              />
               <DialogFooter>
                 <Button variant="outline" onClick={() => setDeleteOpen(false)}>
                   Cancel
@@ -118,7 +129,7 @@ function PrivacyAndData() {
                 <Button
                   variant="destructive"
                   disabled={!password || busy}
-                  onClick={() => void handleDelete()}
+                  onClick={() => void handleDelete({ password })}
                 >
                   {busy ? 'Deleting…' : 'Delete account'}
                 </Button>

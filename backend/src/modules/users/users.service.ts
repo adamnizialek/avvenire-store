@@ -1,12 +1,29 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan } from 'typeorm';
+import { Repository, MoreThan, QueryFailedError, Raw } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { randomBytes, createHash } from 'crypto';
 import { User } from './entities/user.entity';
+import type { GoogleIdentity } from '../auth/google-id-token.verifier';
 
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    err instanceof QueryFailedError &&
+    (err.driverError as { code?: string } | undefined)?.code === '23505'
+  );
+}
+
+/** A hash of random bytes nobody knows: the account can't be password-logged-in. */
+function unusablePassword(): Promise<string> {
+  return bcrypt.hash(randomBytes(32).toString('hex'), 10);
 }
 
 @Injectable()
@@ -51,6 +68,95 @@ export class UsersService {
     return this.usersRepository.save(user);
   }
 
+  /**
+   * The account for a verified Google identity: the one already linked to it,
+   * else the one registered with the same email (linked now), else a new one.
+   * `grantAdmin` (the email is in ADMIN_EMAILS) promotes it to admin.
+   */
+  async findOrCreateForGoogle(
+    identity: GoogleIdentity,
+    grantAdmin: boolean,
+  ): Promise<User> {
+    let user = await this.usersRepository.findOne({
+      where: { googleId: identity.sub },
+    });
+    if (!user) {
+      // An address Google doesn't host was only checked once, when that
+      // Google account was made; whoever holds the mailbox now may be someone
+      // else. Neither link it nor create an account that claims it.
+      if (!identity.googleOwnsEmail) {
+        throw new BadRequestException(
+          'Sign in with Google works for Gmail and Google Workspace addresses. Register with your email and a password instead.',
+        );
+      }
+      user = await this.findForGoogleLink(identity.email);
+      if (user) {
+        // Never take over another Google account's link.
+        if (user.googleId) {
+          throw new ConflictException(
+            'An account with this email already exists. Sign in with your password.',
+          );
+        }
+        // First Google sign-in into a password account. Registration never
+        // verifies the email, so that password may belong to whoever
+        // registered this address first (account pre-hijacking) — and
+        // grantAdmin would hand them an admin login. Google has now proven
+        // who owns the address: retire the old password and revoke its
+        // sessions. The owner can set a new one via "Forgot password", which
+        // matches emails exactly, hence the normalized casing.
+        user.email = identity.email;
+        user.googleId = identity.sub;
+        user.password = await unusablePassword();
+        user.resetToken = null;
+        user.resetTokenExpiry = null;
+        user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+      } else {
+        user = this.usersRepository.create({
+          email: identity.email,
+          password: await unusablePassword(),
+          googleId: identity.sub,
+        });
+      }
+    }
+    if (grantAdmin && user.role !== 'admin') {
+      user.role = 'admin';
+    }
+    try {
+      return await this.usersRepository.save(user);
+    } catch (err) {
+      // Two first sign-ins at once (double click, two tabs): the other one
+      // created the account a moment ago. Use it instead of a 500.
+      if (!user.id && isUniqueViolation(err)) {
+        const created = await this.usersRepository.findOne({
+          where: { googleId: identity.sub },
+        });
+        if (created) return created;
+      }
+      throw err;
+    }
+  }
+
+  /** The account to link: exact email first (as Google has it), else any casing. */
+  private async findForGoogleLink(email: string): Promise<User | null> {
+    const select: (keyof User)[] = [
+      'id',
+      'email',
+      'role',
+      'tokenVersion',
+      'googleId',
+      'createdAt',
+    ];
+    return (
+      (await this.usersRepository.findOne({ where: { email }, select })) ??
+      (await this.usersRepository.findOne({
+        where: {
+          email: Raw((column) => `LOWER(${column}) = :email`, { email }),
+        },
+        select,
+      }))
+    );
+  }
+
   async createResetToken(email: string): Promise<string | null> {
     const user = await this.usersRepository.findOne({ where: { email } });
     if (!user) return null;
@@ -71,7 +177,15 @@ export class UsersService {
   async findByIdWithAuth(id: string): Promise<User | null> {
     return this.usersRepository.findOne({
       where: { id },
-      select: ['id', 'email', 'password', 'role', 'tokenVersion', 'deletedAt'],
+      select: [
+        'id',
+        'email',
+        'password',
+        'role',
+        'tokenVersion',
+        'googleId',
+        'deletedAt',
+      ],
     });
   }
 
@@ -80,8 +194,8 @@ export class UsersService {
    * row, so retained order rows (tax/accounting obligation) keep a valid
    * owner reference while every piece of personal data is destroyed. The
    * tokenVersion bump revokes all outstanding JWTs immediately, and the
-   * unusable random password plus tombstone email make the account
-   * permanently un-loginable — while freeing the original email address for
+   * unusable random password, tombstone email and dropped Google link make
+   * the account permanently un-loginable — while freeing the original email address for
    * a future fresh registration.
    */
   async anonymize(id: string): Promise<void> {
@@ -89,7 +203,8 @@ export class UsersService {
     if (!user) return;
 
     user.email = `deleted-${id}@anonymized.invalid`;
-    user.password = await bcrypt.hash(randomBytes(32).toString('hex'), 10);
+    user.password = await unusablePassword();
+    user.googleId = null;
     user.resetToken = null;
     user.resetTokenExpiry = null;
     user.tokenVersion = (user.tokenVersion ?? 0) + 1;

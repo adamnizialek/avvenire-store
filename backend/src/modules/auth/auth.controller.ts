@@ -7,6 +7,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 import { Public } from './decorators/public.decorator';
 import type { AuthenticatedRequest } from './authenticated-request';
 import { AUTH_COOKIE, authCookieOptions } from './auth-cookie';
@@ -49,6 +50,27 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const { access_token, user } = await this.authService.login(dto);
+    this.setAuthCookie(res, access_token);
+    return { user };
+  }
+
+  /** What the login page needs to render "Sign in with Google" (or not). */
+  @Public()
+  @Get('google/config')
+  googleConfig() {
+    return { clientId: this.authService.googleClientId() };
+  }
+
+  @Public()
+  @Throttle(AUTH_THROTTLE)
+  @Post('google')
+  async loginWithGoogle(
+    @Body() dto: GoogleLoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { access_token, user } = await this.authService.loginWithGoogle(
+      dto.credential,
+    );
     this.setAuthCookie(res, access_token);
     return { user };
   }

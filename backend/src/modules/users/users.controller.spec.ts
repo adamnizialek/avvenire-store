@@ -6,6 +6,7 @@ import { OrdersService } from '../orders/orders.service';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+import { GoogleIdTokenVerifier } from '../auth/google-id-token.verifier';
 
 const req = {
   user: { userId: 'u1', email: 'a@b.c', role: 'user' },
@@ -20,6 +21,7 @@ describe('UsersController (GDPR self-service)', () => {
   };
   let ordersService: { findByUserId: jest.Mock };
   let res: { clearCookie: jest.Mock };
+  let google: { verify: jest.Mock };
 
   beforeEach(() => {
     usersService = {
@@ -29,10 +31,12 @@ describe('UsersController (GDPR self-service)', () => {
     };
     ordersService = { findByUserId: jest.fn().mockResolvedValue([]) };
     res = { clearCookie: jest.fn() };
+    google = { verify: jest.fn() };
     controller = new UsersController(
       usersService as unknown as UsersService,
       ordersService as unknown as OrdersService,
       { get: jest.fn() } as unknown as ConfigService,
+      google as unknown as GoogleIdTokenVerifier,
     );
   });
 
@@ -72,6 +76,7 @@ describe('UsersController (GDPR self-service)', () => {
         id: 'u1',
         email: 'a@b.c',
         role: 'user',
+        googleId: null,
         createdAt: new Date('2026-01-01'),
       });
       expect(result.orders).toEqual([
@@ -130,6 +135,77 @@ describe('UsersController (GDPR self-service)', () => {
         expect.objectContaining({ httpOnly: true }),
       );
       expect(result.message).toContain('deleted');
+    });
+  });
+
+  describe('deleteAccount confirmed with Google', () => {
+    const googleUser = {
+      id: 'u1',
+      email: 'owner@gmail.com',
+      password: 'unusable-random-hash',
+      googleId: 'g-123',
+      tokenVersion: 0,
+    };
+
+    it('deletes when the token is for the linked Google account', async () => {
+      usersService.findByIdWithAuth.mockResolvedValue(googleUser);
+      google.verify.mockResolvedValue({
+        sub: 'g-123',
+        email: 'owner@gmail.com',
+        googleOwnsEmail: true,
+      });
+
+      await controller.deleteAccount(
+        req,
+        { googleCredential: 'fresh-token' },
+        res as unknown as Response,
+      );
+
+      expect(google.verify).toHaveBeenCalledWith('fresh-token');
+      expect(usersService.anonymize).toHaveBeenCalledWith('u1');
+    });
+
+    it('refuses a token for a different Google account', async () => {
+      usersService.findByIdWithAuth.mockResolvedValue(googleUser);
+      google.verify.mockResolvedValue({
+        sub: 'someone-else',
+        email: 'other@gmail.com',
+        googleOwnsEmail: true,
+      });
+
+      await expect(
+        controller.deleteAccount(
+          req,
+          { googleCredential: 'their-token' },
+          res as unknown as Response,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(usersService.anonymize).not.toHaveBeenCalled();
+    });
+
+    it('refuses Google confirmation for an account never linked to Google', async () => {
+      usersService.findByIdWithAuth.mockResolvedValue({
+        ...googleUser,
+        googleId: null,
+      });
+
+      await expect(
+        controller.deleteAccount(
+          req,
+          { googleCredential: 'any-token' },
+          res as unknown as Response,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(google.verify).not.toHaveBeenCalled();
+    });
+
+    it('refuses when neither a password nor a Google token is given', async () => {
+      usersService.findByIdWithAuth.mockResolvedValue(googleUser);
+
+      await expect(
+        controller.deleteAccount(req, {}, res as unknown as Response),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(usersService.anonymize).not.toHaveBeenCalled();
     });
   });
 });

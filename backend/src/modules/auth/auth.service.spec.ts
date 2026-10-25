@@ -1,10 +1,15 @@
-import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { MailService } from '../mail/mail.service';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
+import { GoogleIdTokenVerifier } from './google-id-token.verifier';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -13,9 +18,12 @@ describe('AuthService', () => {
     findByEmail: jest.Mock;
     createResetToken: jest.Mock;
     resetPassword: jest.Mock;
+    findOrCreateForGoogle: jest.Mock;
   };
   let signAsync: jest.Mock;
   let sendPasswordReset: jest.Mock;
+  let google: { clientId: string | null; verify: jest.Mock };
+  let env: Record<string, string>;
 
   beforeEach(() => {
     usersService = {
@@ -23,16 +31,21 @@ describe('AuthService', () => {
       findByEmail: jest.fn(),
       createResetToken: jest.fn(),
       resetPassword: jest.fn(),
+      findOrCreateForGoogle: jest.fn(),
     };
     signAsync = jest.fn().mockResolvedValue('signed.jwt');
     sendPasswordReset = jest.fn().mockResolvedValue(undefined);
+    google = { clientId: 'client-id', verify: jest.fn() };
+    env = {};
     service = new AuthService(
       usersService as unknown as UsersService,
       { signAsync } as unknown as JwtService,
       {
-        get: (_key: string, defaultValue?: unknown): unknown => defaultValue,
+        get: (key: string, defaultValue?: unknown): unknown =>
+          key in env ? env[key] : defaultValue,
       } as unknown as ConfigService,
       { sendPasswordReset } as unknown as MailService,
+      google as unknown as GoogleIdTokenVerifier,
     );
   });
 
@@ -146,6 +159,90 @@ describe('AuthService', () => {
         'good-token',
         'newPassword1',
       );
+    });
+  });
+
+  describe('loginWithGoogle', () => {
+    const identity = {
+      sub: 'g-123',
+      email: 'owner@gmail.com',
+      googleOwnsEmail: true,
+    };
+    const linkedUser = {
+      id: 'u1',
+      email: 'owner@gmail.com',
+      role: 'user',
+      tokenVersion: 2,
+    };
+
+    it('signs in the account for a verified Google identity', async () => {
+      google.verify.mockResolvedValue(identity);
+      usersService.findOrCreateForGoogle.mockResolvedValue(linkedUser);
+
+      const result = await service.loginWithGoogle('id-token');
+
+      expect(google.verify).toHaveBeenCalledWith('id-token');
+      expect(usersService.findOrCreateForGoogle).toHaveBeenCalledWith(
+        identity,
+        false,
+      );
+      expect(signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ sub: 'u1', tokenVersion: 2 }),
+      );
+      expect(result.user).toEqual({
+        id: 'u1',
+        email: 'owner@gmail.com',
+        role: 'user',
+      });
+    });
+
+    it('grants admin only to emails listed in ADMIN_EMAILS (any case, spaces)', async () => {
+      env.ADMIN_EMAILS = ' someone@else.com , Owner@Gmail.com ';
+      google.verify.mockResolvedValue(identity);
+      usersService.findOrCreateForGoogle.mockResolvedValue(linkedUser);
+
+      await service.loginWithGoogle('id-token');
+
+      expect(usersService.findOrCreateForGoogle).toHaveBeenCalledWith(
+        identity,
+        true,
+      );
+    });
+
+    it('never grants admin for an address Google does not own', async () => {
+      env.ADMIN_EMAILS = 'owner@shop.pl';
+      const outside = {
+        sub: 'g-9',
+        email: 'owner@shop.pl',
+        googleOwnsEmail: false,
+      };
+      google.verify.mockResolvedValue(outside);
+      usersService.findOrCreateForGoogle.mockResolvedValue(linkedUser);
+
+      await service.loginWithGoogle('id-token');
+
+      expect(usersService.findOrCreateForGoogle).toHaveBeenCalledWith(
+        outside,
+        false,
+      );
+    });
+
+    it('rejects a token the verifier does not accept, touching no account', async () => {
+      google.verify.mockResolvedValue(null);
+
+      await expect(service.loginWithGoogle('forged')).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(usersService.findOrCreateForGoogle).not.toHaveBeenCalled();
+    });
+
+    it('answers 503 when Google sign-in is not configured', async () => {
+      google.clientId = null;
+
+      await expect(service.loginWithGoogle('id-token')).rejects.toBeInstanceOf(
+        ServiceUnavailableException,
+      );
+      expect(google.verify).not.toHaveBeenCalled();
     });
   });
 });
