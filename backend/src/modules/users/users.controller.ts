@@ -15,6 +15,8 @@ import * as bcrypt from 'bcrypt';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { AUTH_COOKIE, authCookieOptions } from '../auth/auth-cookie';
 import { OrdersService } from '../orders/orders.service';
+import { GoogleIdTokenVerifier } from '../auth/google-id-token.verifier';
+import type { User } from './entities/user.entity';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { UsersService } from './users.service';
 
@@ -32,7 +34,23 @@ export class UsersController {
     private usersService: UsersService,
     private ordersService: OrdersService,
     private configService: ConfigService,
+    private googleVerifier: GoogleIdTokenVerifier,
   ) {}
+
+  /** The password, or a fresh token for the Google account linked to it. */
+  private async confirmsIdentity(
+    user: User,
+    dto: DeleteAccountDto,
+  ): Promise<boolean> {
+    if (dto.password) {
+      return bcrypt.compare(dto.password, user.password);
+    }
+    if (dto.googleCredential && user.googleId) {
+      const identity = await this.googleVerifier.verify(dto.googleCredential);
+      return identity?.sub === user.googleId;
+    }
+    return false;
+  }
 
   /**
    * Right of access / portability (GDPR Art. 15 & 20): every piece of
@@ -45,6 +63,7 @@ export class UsersController {
       throw new UnauthorizedException();
     }
     const orders = await this.ordersService.findByUserId(user.id);
+    const auth = await this.usersService.findByIdWithAuth(user.id);
 
     return {
       exportedAt: new Date().toISOString(),
@@ -52,6 +71,8 @@ export class UsersController {
         id: user.id,
         email: user.email,
         role: user.role,
+        // The linked Google account's id, when the user signs in with Google.
+        googleId: auth?.googleId ?? null,
         createdAt: user.createdAt,
       },
       orders: orders.map((order) => ({
@@ -85,8 +106,12 @@ export class UsersController {
     // 403, not 401: the session itself is valid, only the confirmation
     // failed. (The frontend treats a 401 while logged in as session expiry
     // and would silently log the user out over a typo.)
-    if (!user || !(await bcrypt.compare(dto.password, user.password))) {
-      throw new ForbiddenException('Password is incorrect');
+    if (!user || !(await this.confirmsIdentity(user, dto))) {
+      throw new ForbiddenException(
+        dto.password
+          ? 'Password is incorrect'
+          : 'Confirm with the Google account this store account uses',
+      );
     }
 
     await this.usersService.anonymize(user.id);

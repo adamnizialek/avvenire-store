@@ -20,16 +20,27 @@ declare global {
 }
 
 let gsiLoading: Promise<GoogleIdApi> | null = null;
+// Google's library is initialized once per page load (it isn't meant to be
+// re-initialized); its callback forwards to whichever button is mounted now.
+let activeHandler: ((credential: string) => void) | null = null;
 
-function loadGoogleIdentity(): Promise<GoogleIdApi> {
+function loadGoogleIdentity(clientId: string): Promise<GoogleIdApi> {
   gsiLoading ??= new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = GSI_SRC;
     script.async = true;
-    script.onload = () =>
-      window.google
-        ? resolve(window.google.accounts.id)
-        : reject(new Error('Google sign-in did not load'));
+    script.onload = () => {
+      const google = window.google?.accounts.id;
+      if (!google) {
+        reject(new Error('Google sign-in did not load'));
+        return;
+      }
+      google.initialize({
+        client_id: clientId,
+        callback: ({ credential }) => activeHandler?.(credential),
+      });
+      resolve(google);
+    };
     script.onerror = () => {
       gsiLoading = null; // let a later visit retry
       reject(new Error('Google sign-in did not load'));
@@ -40,7 +51,7 @@ function loadGoogleIdentity(): Promise<GoogleIdApi> {
 }
 
 interface GoogleSignInButtonProps {
-  /** Receives Google's ID token; the page posts it to /auth/google. */
+  /** Receives Google's ID token for the page to send to the backend. */
   onCredential: (credential: string) => void;
   text?: 'signin_with' | 'signup_with' | 'continue_with';
 }
@@ -56,12 +67,18 @@ export default function GoogleSignInButton({
 }: GoogleSignInButtonProps) {
   const [clientId, setClientId] = useState<string | null>(null);
   const container = useRef<HTMLDivElement>(null);
-  // Google keeps the first callback it's given; route it through a ref so it
-  // always calls the page's latest handler.
   const callback = useRef(onCredential);
   useEffect(() => {
     callback.current = onCredential;
   });
+
+  useEffect(() => {
+    const handler = (credential: string) => callback.current(credential);
+    activeHandler = handler;
+    return () => {
+      if (activeHandler === handler) activeHandler = null;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,14 +96,10 @@ export default function GoogleSignInButton({
   useEffect(() => {
     if (!clientId) return;
     let cancelled = false;
-    loadGoogleIdentity()
+    loadGoogleIdentity(clientId)
       .then((google) => {
         const parent = container.current;
         if (cancelled || !parent) return;
-        google.initialize({
-          client_id: clientId,
-          callback: ({ credential }) => callback.current(credential),
-        });
         google.renderButton(parent, {
           theme: 'outline',
           size: 'large',

@@ -74,7 +74,7 @@ export class AuthService {
     }
     const user = await this.usersService.findOrCreateForGoogle(
       identity,
-      this.isAdminEmail(identity.email),
+      identity.googleOwnsEmail && this.isAdminEmail(identity.email),
     );
     return this.issueToken(user);
   }
@@ -82,7 +82,9 @@ export class AuthService {
   /**
    * ADMIN_EMAILS (comma-separated) lists the Google accounts that become
    * admin when they sign in with Google. Only Google sign-in grants it: a
-   * password registration proves nothing about owning the address.
+   * password registration proves nothing about owning the address. It only
+   * ever promotes: taking an address off the list doesn't demote the account
+   * (change its role in the database for that).
    */
   private isAdminEmail(email: string): boolean {
     return this.configService

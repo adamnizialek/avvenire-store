@@ -1,6 +1,6 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan, Raw } from 'typeorm';
+import { Repository, MoreThan, QueryFailedError, Raw } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { randomBytes, createHash } from 'crypto';
 import { User } from './entities/user.entity';
@@ -8,6 +8,13 @@ import type { GoogleIdentity } from '../auth/google-id-token.verifier';
 
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    err instanceof QueryFailedError &&
+    (err.driverError as { code?: string } | undefined)?.code === '23505'
+  );
 }
 
 /** A hash of random bytes nobody knows: the account can't be password-logged-in. */
@@ -70,20 +77,23 @@ export class UsersService {
       where: { googleId: identity.sub },
     });
     if (!user) {
-      user = await this.usersRepository.findOne({
-        where: {
-          email: Raw((column) => `LOWER(${column}) = :email`, {
-            email: identity.email,
-          }),
-        },
-      });
+      user = await this.findForGoogleLink(identity.email);
       if (user) {
+        // Linking by email is only safe when Google owns the mailbox, and
+        // never over another Google account's link.
+        if (user.googleId || !identity.googleOwnsEmail) {
+          throw new ConflictException(
+            'An account with this email already exists. Sign in with your password.',
+          );
+        }
         // First Google sign-in into a password account. Registration never
         // verifies the email, so that password may belong to whoever
-        // registered this address first (account pre-hijacking) — and
+        // registered this address first (account pre-hijacking) â€” and
         // grantAdmin would hand them an admin login. Google has now proven
         // who owns the address: retire the old password and revoke its
-        // sessions. The owner can set a new one via "Forgot password".
+        // sessions. The owner can set a new one via "Forgot password", which
+        // matches emails exactly, hence the normalized casing.
+        user.email = identity.email;
         user.googleId = identity.sub;
         user.password = await unusablePassword();
         user.resetToken = null;
@@ -100,7 +110,40 @@ export class UsersService {
     if (grantAdmin && user.role !== 'admin') {
       user.role = 'admin';
     }
-    return this.usersRepository.save(user);
+    try {
+      return await this.usersRepository.save(user);
+    } catch (err) {
+      // Two first sign-ins at once (double click, two tabs): the other one
+      // created the account a moment ago. Use it instead of a 500.
+      if (!user.id && isUniqueViolation(err)) {
+        const created = await this.usersRepository.findOne({
+          where: { googleId: identity.sub },
+        });
+        if (created) return created;
+      }
+      throw err;
+    }
+  }
+
+  /** The account to link: exact email first (as Google has it), else any casing. */
+  private async findForGoogleLink(email: string): Promise<User | null> {
+    const select: (keyof User)[] = [
+      'id',
+      'email',
+      'role',
+      'tokenVersion',
+      'googleId',
+      'createdAt',
+    ];
+    return (
+      (await this.usersRepository.findOne({ where: { email }, select })) ??
+      (await this.usersRepository.findOne({
+        where: {
+          email: Raw((column) => `LOWER(${column}) = :email`, { email }),
+        },
+        select,
+      }))
+    );
   }
 
   async createResetToken(email: string): Promise<string | null> {
@@ -123,7 +166,15 @@ export class UsersService {
   async findByIdWithAuth(id: string): Promise<User | null> {
     return this.usersRepository.findOne({
       where: { id },
-      select: ['id', 'email', 'password', 'role', 'tokenVersion', 'deletedAt'],
+      select: [
+        'id',
+        'email',
+        'password',
+        'role',
+        'tokenVersion',
+        'googleId',
+        'deletedAt',
+      ],
     });
   }
 

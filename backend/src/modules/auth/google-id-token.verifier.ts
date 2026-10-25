@@ -7,6 +7,13 @@ export interface GoogleIdentity {
   sub: string;
   /** Lower-cased, and only ever an address Google has verified. */
   email: string;
+  /**
+   * Google is the authority for the address (Gmail, or a Workspace domain):
+   * whoever holds this Google account holds the mailbox today. For any other
+   * address Google only checked it once, at sign-up, so the address alone
+   * must not unlock an existing account or admin rights.
+   */
+  googleOwnsEmail: boolean;
 }
 
 /**
@@ -43,7 +50,13 @@ export class GoogleIdTokenVerifier {
       if (!payload?.sub || !payload.email || payload.email_verified !== true) {
         return null;
       }
-      return { sub: payload.sub, email: payload.email.toLowerCase() };
+      const email = payload.email.toLowerCase();
+      return {
+        sub: payload.sub,
+        email,
+        googleOwnsEmail:
+          /@(gmail|googlemail)\.com$/.test(email) || Boolean(payload.hd),
+      };
     } catch (err) {
       this.logger.warn(`Rejected a Google ID token: ${(err as Error).message}`);
       return null;

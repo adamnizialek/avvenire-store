@@ -28,10 +28,30 @@ describe('GoogleIdTokenVerifier', () => {
     await expect(makeVerifier('client-id').verify('tok')).resolves.toEqual({
       sub: 'g-1',
       email: 'owner@gmail.com',
+      googleOwnsEmail: true,
     });
     expect(verifyIdToken).toHaveBeenCalledWith({
       idToken: 'tok',
       audience: 'client-id',
+    });
+  });
+
+  it('marks Workspace addresses as Google-owned and others as not', async () => {
+    const verifier = makeVerifier('client-id');
+
+    googleSays({
+      sub: 'g-2',
+      email: 'me@firm.pl',
+      email_verified: true,
+      hd: 'firm.pl',
+    });
+    await expect(verifier.verify('tok')).resolves.toMatchObject({
+      googleOwnsEmail: true,
+    });
+
+    googleSays({ sub: 'g-3', email: 'me@shop.pl', email_verified: true });
+    await expect(verifier.verify('tok')).resolves.toMatchObject({
+      googleOwnsEmail: false,
     });
   });
 

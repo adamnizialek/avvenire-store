@@ -163,7 +163,11 @@ describe('AuthService', () => {
   });
 
   describe('loginWithGoogle', () => {
-    const identity = { sub: 'g-123', email: 'owner@gmail.com' };
+    const identity = {
+      sub: 'g-123',
+      email: 'owner@gmail.com',
+      googleOwnsEmail: true,
+    };
     const linkedUser = {
       id: 'u1',
       email: 'owner@gmail.com',
@@ -202,6 +206,24 @@ describe('AuthService', () => {
       expect(usersService.findOrCreateForGoogle).toHaveBeenCalledWith(
         identity,
         true,
+      );
+    });
+
+    it('never grants admin for an address Google does not own', async () => {
+      env.ADMIN_EMAILS = 'owner@shop.pl';
+      const outside = {
+        sub: 'g-9',
+        email: 'owner@shop.pl',
+        googleOwnsEmail: false,
+      };
+      google.verify.mockResolvedValue(outside);
+      usersService.findOrCreateForGoogle.mockResolvedValue(linkedUser);
+
+      await service.loginWithGoogle('id-token');
+
+      expect(usersService.findOrCreateForGoogle).toHaveBeenCalledWith(
+        outside,
+        false,
       );
     });
 

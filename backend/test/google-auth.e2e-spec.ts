@@ -27,8 +27,12 @@ jest.setTimeout(30_000);
 
 const OWNER = 'owner@google.e2e.test';
 const IDENTITIES: Record<string, GoogleIdentity> = {
-  'owner-token': { sub: 'google-owner', email: OWNER },
-  'shopper-token': { sub: 'google-shopper', email: 'shopper@google.e2e.test' },
+  'owner-token': { sub: 'google-owner', email: OWNER, googleOwnsEmail: true },
+  'shopper-token': {
+    sub: 'google-shopper',
+    email: 'shopper@google.e2e.test',
+    googleOwnsEmail: true,
+  },
 };
 
 const fakeGoogle = {
@@ -49,6 +53,8 @@ interface UserBody {
 describe('Sign in with Google (e2e)', () => {
   let app: INestApplication<App>;
   let server: App;
+  let ownerId: string;
+  let ownerCookie: string;
 
   beforeAll(async () => {
     process.env.ADMIN_EMAILS = OWNER;
@@ -109,6 +115,10 @@ describe('Sign in with Google (e2e)', () => {
     const body = res.body as UserBody;
     expect(body.user.role).toBe('admin');
     expect(body.user.id).toBe((squat.body as UserBody).user.id);
+    // Stored casing now follows Google, so "Forgot password" can find it.
+    expect(body.user.email).toBe(OWNER);
+    ownerId = body.user.id;
+    ownerCookie = authCookieOf(res);
 
     // The real owner is in, with admin rights the server re-reads per request…
     const profile = await request(server)
@@ -128,35 +138,51 @@ describe('Sign in with Google (e2e)', () => {
       .expect(401);
   });
 
-  it('signs the owner back into the same account next time', async () => {
-    const first = await request(server)
-      .post('/api/auth/google')
-      .send({ credential: 'owner-token' })
-      .expect(201);
-    const firstCookie = authCookieOf(first);
-
+  it('signs the owner back into the same account, other sessions intact', async () => {
     const again = await request(server)
       .post('/api/auth/google')
       .send({ credential: 'owner-token' })
       .expect(201);
-    expect((again.body as UserBody).user.id).toBe(
-      (first.body as UserBody).user.id,
-    );
+    expect((again.body as UserBody).user.id).toBe(ownerId);
     // A repeat sign-in doesn't log the owner's other devices out.
     await request(server)
       .get('/api/auth/profile')
-      .set('Cookie', firstCookie)
+      .set('Cookie', ownerCookie)
       .expect(200);
   });
 
-  it('creates a regular customer account for anyone else', async () => {
+  // /auth/google allows 5 calls a minute; this is the 4th and 5th.
+  it('creates a plain customer account for anyone else, which can delete itself with Google', async () => {
     const res = await request(server)
       .post('/api/auth/google')
       .send({ credential: 'shopper-token' })
       .expect(201);
-    expect((res.body as UserBody).user).toMatchObject({
+    const shopper = (res.body as UserBody).user;
+    expect(shopper).toMatchObject({
       email: 'shopper@google.e2e.test',
       role: 'user',
     });
+    const cookie = authCookieOf(res);
+
+    // It has no password it could type…
+    await request(server)
+      .delete('/api/users/me')
+      .set('Cookie', cookie)
+      .send({ password: 'guess' })
+      .expect(403);
+
+    // …so it confirms with its Google account instead.
+    await request(server)
+      .delete('/api/users/me')
+      .set('Cookie', cookie)
+      .send({ googleCredential: 'shopper-token' })
+      .expect(200);
+
+    // Signing in with Google again starts a fresh account, not the tombstone.
+    const again = await request(server)
+      .post('/api/auth/google')
+      .send({ credential: 'shopper-token' })
+      .expect(201);
+    expect((again.body as UserBody).user.id).not.toBe(shopper.id);
   });
 });
