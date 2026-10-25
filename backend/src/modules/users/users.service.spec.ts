@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { createHash } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { QueryFailedError, Repository } from 'typeorm';
@@ -290,17 +290,23 @@ describe('UsersService.findOrCreateForGoogle', () => {
     expect(promoted.role).toBe('admin');
   });
 
-  it('refuses to link by an email Google does not own (non-Gmail, no Workspace)', async () => {
+  it('neither links nor creates an account for an address Google does not own', async () => {
+    const outside = { sub: 'g-9', email: 'me@shop.pl', googleOwnsEmail: false };
+
+    // No account with that address yet: still no new one.
+    await expect(
+      service.findOrCreateForGoogle(outside, true),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    // An existing password account with it: not linked either.
     findOne
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ id: 'u1', email: 'me@shop.pl' } as User);
-
     await expect(
-      service.findOrCreateForGoogle(
-        { sub: 'g-9', email: 'me@shop.pl', googleOwnsEmail: false },
-        true,
-      ),
-    ).rejects.toBeInstanceOf(ConflictException);
+      service.findOrCreateForGoogle(outside, true),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(create).not.toHaveBeenCalled();
     expect(save).not.toHaveBeenCalled();
   });
 

@@ -1,4 +1,8 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan, QueryFailedError, Raw } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -77,11 +81,18 @@ export class UsersService {
       where: { googleId: identity.sub },
     });
     if (!user) {
+      // An address Google doesn't host was only checked once, when that
+      // Google account was made; whoever holds the mailbox now may be someone
+      // else. Neither link it nor create an account that claims it.
+      if (!identity.googleOwnsEmail) {
+        throw new BadRequestException(
+          'Sign in with Google works for Gmail and Google Workspace addresses. Register with your email and a password instead.',
+        );
+      }
       user = await this.findForGoogleLink(identity.email);
       if (user) {
-        // Linking by email is only safe when Google owns the mailbox, and
-        // never over another Google account's link.
-        if (user.googleId || !identity.googleOwnsEmail) {
+        // Never take over another Google account's link.
+        if (user.googleId) {
           throw new ConflictException(
             'An account with this email already exists. Sign in with your password.',
           );
