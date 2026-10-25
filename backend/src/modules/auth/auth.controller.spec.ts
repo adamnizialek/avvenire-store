@@ -6,7 +6,12 @@ import { AUTH_COOKIE } from './auth-cookie';
 
 describe('AuthController cookie-based auth', () => {
   let controller: AuthController;
-  let authService: { register: jest.Mock; login: jest.Mock };
+  let authService: {
+    register: jest.Mock;
+    login: jest.Mock;
+    loginWithGoogle: jest.Mock;
+    googleClientId: jest.Mock;
+  };
   let res: { cookie: jest.Mock; clearCookie: jest.Mock };
 
   beforeEach(() => {
@@ -19,6 +24,11 @@ describe('AuthController cookie-based auth', () => {
         access_token: 'jwt-abc',
         user: { id: 'u1', email: 'a@b.c', role: 'user' },
       }),
+      loginWithGoogle: jest.fn().mockResolvedValue({
+        access_token: 'jwt-abc',
+        user: { id: 'u1', email: 'a@b.c', role: 'admin' },
+      }),
+      googleClientId: jest.fn().mockReturnValue('client-id'),
     };
     res = { cookie: jest.fn(), clearCookie: jest.fn() };
     controller = new AuthController(
@@ -58,6 +68,25 @@ describe('AuthController cookie-based auth', () => {
       expect.objectContaining({ httpOnly: true }),
     );
     expect(JSON.stringify(body)).not.toContain('jwt-abc');
+  });
+
+  it('Google sign-in sets the cookie the same way', async () => {
+    const body = await controller.loginWithGoogle(
+      { credential: 'google-id-token' },
+      res as unknown as Response,
+    );
+
+    expect(authService.loginWithGoogle).toHaveBeenCalledWith('google-id-token');
+    expect(res.cookie).toHaveBeenCalledWith(
+      AUTH_COOKIE,
+      'jwt-abc',
+      expect.objectContaining({ httpOnly: true }),
+    );
+    expect(JSON.stringify(body)).not.toContain('jwt-abc');
+  });
+
+  it('exposes the public Google client id for the button', () => {
+    expect(controller.googleConfig()).toEqual({ clientId: 'client-id' });
   });
 
   it('logout clears the auth cookie', () => {

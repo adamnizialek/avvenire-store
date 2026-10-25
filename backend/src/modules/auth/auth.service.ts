@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   Logger,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -12,6 +13,7 @@ import { MailService } from '../mail/mail.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { User } from '../users/entities/user.entity';
+import { GoogleIdTokenVerifier } from './google-id-token.verifier';
 
 @Injectable()
 export class AuthService {
@@ -22,6 +24,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private mailService: MailService,
+    private googleVerifier: GoogleIdTokenVerifier,
   ) {}
 
   private async issueToken(user: User) {
@@ -54,6 +57,40 @@ export class AuthService {
     }
 
     return this.issueToken(user);
+  }
+
+  /** The public OAuth client id for the button, or null when not configured. */
+  googleClientId(): string | null {
+    return this.googleVerifier.clientId;
+  }
+
+  async loginWithGoogle(credential: string) {
+    if (!this.googleVerifier.clientId) {
+      throw new ServiceUnavailableException('Google sign-in is not configured');
+    }
+    const identity = await this.googleVerifier.verify(credential);
+    if (!identity) {
+      throw new UnauthorizedException('Google sign-in failed');
+    }
+    const user = await this.usersService.findOrCreateForGoogle(
+      identity,
+      this.isAdminEmail(identity.email),
+    );
+    return this.issueToken(user);
+  }
+
+  /**
+   * ADMIN_EMAILS (comma-separated) lists the Google accounts that become
+   * admin when they sign in with Google. Only Google sign-in grants it: a
+   * password registration proves nothing about owning the address.
+   */
+  private isAdminEmail(email: string): boolean {
+    return this.configService
+      .get<string>('ADMIN_EMAILS', '')
+      .split(',')
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean)
+      .includes(email.toLowerCase());
   }
 
   async getProfile(userId: string) {

@@ -1,12 +1,18 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan } from 'typeorm';
+import { Repository, MoreThan, Raw } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { randomBytes, createHash } from 'crypto';
 import { User } from './entities/user.entity';
+import type { GoogleIdentity } from '../auth/google-id-token.verifier';
 
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
+}
+
+/** A hash of random bytes nobody knows: the account can't be password-logged-in. */
+function unusablePassword(): Promise<string> {
+  return bcrypt.hash(randomBytes(32).toString('hex'), 10);
 }
 
 @Injectable()
@@ -51,6 +57,52 @@ export class UsersService {
     return this.usersRepository.save(user);
   }
 
+  /**
+   * The account for a verified Google identity: the one already linked to it,
+   * else the one registered with the same email (linked now), else a new one.
+   * `grantAdmin` (the email is in ADMIN_EMAILS) promotes it to admin.
+   */
+  async findOrCreateForGoogle(
+    identity: GoogleIdentity,
+    grantAdmin: boolean,
+  ): Promise<User> {
+    let user = await this.usersRepository.findOne({
+      where: { googleId: identity.sub },
+    });
+    if (!user) {
+      user = await this.usersRepository.findOne({
+        where: {
+          email: Raw((column) => `LOWER(${column}) = :email`, {
+            email: identity.email,
+          }),
+        },
+      });
+      if (user) {
+        // First Google sign-in into a password account. Registration never
+        // verifies the email, so that password may belong to whoever
+        // registered this address first (account pre-hijacking) � and
+        // grantAdmin would hand them an admin login. Google has now proven
+        // who owns the address: retire the old password and revoke its
+        // sessions. The owner can set a new one via "Forgot password".
+        user.googleId = identity.sub;
+        user.password = await unusablePassword();
+        user.resetToken = null;
+        user.resetTokenExpiry = null;
+        user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+      } else {
+        user = this.usersRepository.create({
+          email: identity.email,
+          password: await unusablePassword(),
+          googleId: identity.sub,
+        });
+      }
+    }
+    if (grantAdmin && user.role !== 'admin') {
+      user.role = 'admin';
+    }
+    return this.usersRepository.save(user);
+  }
+
   async createResetToken(email: string): Promise<string | null> {
     const user = await this.usersRepository.findOne({ where: { email } });
     if (!user) return null;
@@ -80,8 +132,8 @@ export class UsersService {
    * row, so retained order rows (tax/accounting obligation) keep a valid
    * owner reference while every piece of personal data is destroyed. The
    * tokenVersion bump revokes all outstanding JWTs immediately, and the
-   * unusable random password plus tombstone email make the account
-   * permanently un-loginable — while freeing the original email address for
+   * unusable random password, tombstone email and dropped Google link make
+   * the account permanently un-loginable — while freeing the original email address for
    * a future fresh registration.
    */
   async anonymize(id: string): Promise<void> {
@@ -89,7 +141,8 @@ export class UsersService {
     if (!user) return;
 
     user.email = `deleted-${id}@anonymized.invalid`;
-    user.password = await bcrypt.hash(randomBytes(32).toString('hex'), 10);
+    user.password = await unusablePassword();
+    user.googleId = null;
     user.resetToken = null;
     user.resetTokenExpiry = null;
     user.tokenVersion = (user.tokenVersion ?? 0) + 1;

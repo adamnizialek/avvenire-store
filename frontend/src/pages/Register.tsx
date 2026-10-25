@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/card';
 import { useAuthStore } from '@/stores/authStore';
 import { getErrorMessage } from '@/lib/errors';
+import GoogleSignInButton from '@/components/features/GoogleSignInButton';
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -21,7 +22,21 @@ export default function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const register = useAuthStore((state) => state.register);
+  const loginWithGoogle = useAuthStore((state) => state.loginWithGoogle);
   const navigate = useNavigate();
+
+  const handleGoogleCredential = async (credential: string) => {
+    setError('');
+    setLoading(true);
+    try {
+      await loginWithGoogle(credential);
+      navigate('/');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Google sign-in failed'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,6 +114,10 @@ export default function Register() {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Creating account...' : 'Register'}
             </Button>
+            <GoogleSignInButton
+              text="signup_with"
+              onCredential={(credential) => void handleGoogleCredential(credential)}
+            />
             <p className="text-sm text-muted-foreground">
               Already have an account?{' '}
               <Link to="/login" className="text-primary underline">
